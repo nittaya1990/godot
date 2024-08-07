@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  test_string.h                                                        */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  test_string.h                                                         */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef TEST_STRING_H
 #define TEST_STRING_H
@@ -38,8 +38,9 @@
 namespace TestString {
 
 int u32scmp(const char32_t *l, const char32_t *r) {
-	for (; *l == *r && *l && *r; l++, r++)
-		;
+	for (; *l == *r && *l && *r; l++, r++) {
+		// Continue.
+	}
 	return *l - *r;
 }
 
@@ -88,12 +89,12 @@ TEST_CASE("[String] UTF8") {
 	static const char32_t u32str[] = { 0x0045, 0x0020, 0x304A, 0x360F, 0x3088, 0x3046, 0x1F3A4, 0 };
 	static const uint8_t u8str[] = { 0x45, 0x20, 0xE3, 0x81, 0x8A, 0xE3, 0x98, 0x8F, 0xE3, 0x82, 0x88, 0xE3, 0x81, 0x86, 0xF0, 0x9F, 0x8E, 0xA4, 0 };
 	String s = u32str;
-	bool err = s.parse_utf8(s.utf8().get_data());
-	CHECK(!err);
+	Error err = s.parse_utf8(s.utf8().get_data());
+	CHECK(err == OK);
 	CHECK(s == u32str);
 
 	err = s.parse_utf8((const char *)u8str);
-	CHECK(!err);
+	CHECK(err == OK);
 	CHECK(s == u32str);
 
 	CharString cs = (const char *)u8str;
@@ -105,12 +106,12 @@ TEST_CASE("[String] UTF16") {
 	static const char32_t u32str[] = { 0x0045, 0x0020, 0x304A, 0x360F, 0x3088, 0x3046, 0x1F3A4, 0 };
 	static const char16_t u16str[] = { 0x0045, 0x0020, 0x304A, 0x360F, 0x3088, 0x3046, 0xD83C, 0xDFA4, 0 };
 	String s = u32str;
-	bool err = s.parse_utf16(s.utf16().get_data());
-	CHECK(!err);
+	Error err = s.parse_utf16(s.utf16().get_data());
+	CHECK(err == OK);
 	CHECK(s == u32str);
 
 	err = s.parse_utf16(u16str);
-	CHECK(!err);
+	CHECK(err == OK);
 	CHECK(s == u32str);
 
 	Char16String cs = u16str;
@@ -122,8 +123,8 @@ TEST_CASE("[String] UTF8 with BOM") {
 	static const char32_t u32str[] = { 0x0045, 0x0020, 0x304A, 0x360F, 0x3088, 0x3046, 0x1F3A4, 0 };
 	static const uint8_t u8str[] = { 0xEF, 0xBB, 0xBF, 0x45, 0x20, 0xE3, 0x81, 0x8A, 0xE3, 0x98, 0x8F, 0xE3, 0x82, 0x88, 0xE3, 0x81, 0x86, 0xF0, 0x9F, 0x8E, 0xA4, 0 };
 	String s;
-	bool err = s.parse_utf8((const char *)u8str);
-	CHECK(!err);
+	Error err = s.parse_utf8((const char *)u8str);
+	CHECK(err == OK);
 	CHECK(s == u32str);
 
 	CharString cs = (const char *)u8str;
@@ -136,12 +137,12 @@ TEST_CASE("[String] UTF16 with BOM") {
 	static const char16_t u16str[] = { 0xFEFF, 0x0020, 0x0045, 0x304A, 0x360F, 0x3088, 0x3046, 0xD83C, 0xDFA4, 0 };
 	static const char16_t u16str_swap[] = { 0xFFFE, 0x2000, 0x4500, 0x4A30, 0x0F36, 0x8830, 0x4630, 0x3CD8, 0xA4DF, 0 };
 	String s;
-	bool err = s.parse_utf16(u16str);
-	CHECK(!err);
+	Error err = s.parse_utf16(u16str);
+	CHECK(err == OK);
 	CHECK(s == u32str);
 
 	err = s.parse_utf16(u16str_swap);
-	CHECK(!err);
+	CHECK(err == OK);
 	CHECK(s == u32str);
 
 	Char16String cs = u16str;
@@ -151,29 +152,62 @@ TEST_CASE("[String] UTF16 with BOM") {
 	CHECK(String::utf16(cs) == s);
 }
 
-TEST_CASE("[String] Invalid UTF8") {
+TEST_CASE("[String] UTF8 with CR") {
+	const String base = U"Hello darkness\r\nMy old friend\nI've come to talk\rWith you again";
+
+	String keep_cr;
+	Error err = keep_cr.parse_utf8(base.utf8().get_data());
+	CHECK(err == OK);
+	CHECK(keep_cr == base);
+
+	String no_cr;
+	err = no_cr.parse_utf8(base.utf8().get_data(), -1, true); // Skip CR.
+	CHECK(err == OK);
+	CHECK(no_cr == base.replace("\r", ""));
+}
+
+TEST_CASE("[String] Invalid UTF8 (non-standard)") {
 	ERR_PRINT_OFF
-	static const uint8_t u8str[] = { 0x45, 0xE3, 0x81, 0x8A, 0x8F, 0xE3, 0xE3, 0x98, 0x8F, 0xE3, 0x82, 0x88, 0xE3, 0x81, 0x86, 0xF0, 0x9F, 0x8E, 0xA4, 0 };
+	static const uint8_t u8str[] = { 0x45, 0xE3, 0x81, 0x8A, 0xE3, 0x82, 0x88, 0xE3, 0x81, 0x86, 0xF0, 0x9F, 0x8E, 0xA4, 0xF0, 0x82, 0x82, 0xAC, 0xED, 0xA0, 0x81, 0 };
+	//                               +     +2                +2                +2                +3                      overlong +3             unpaired +2
+	static const char32_t u32str[] = { 0x45, 0x304A, 0x3088, 0x3046, 0x1F3A4, 0x20AC, 0xFFFD, 0 };
 	String s;
-	bool err = s.parse_utf8((const char *)u8str);
-	CHECK(err);
-	CHECK(s == String());
+	Error err = s.parse_utf8((const char *)u8str);
+	CHECK(err == ERR_INVALID_DATA);
+	CHECK(s == u32str);
 
 	CharString cs = (const char *)u8str;
-	CHECK(String::utf8(cs) == String());
+	CHECK(String::utf8(cs) == s);
 	ERR_PRINT_ON
 }
 
-TEST_CASE("[String] Invalid UTF16") {
+TEST_CASE("[String] Invalid UTF8 (unrecoverable)") {
+	ERR_PRINT_OFF
+	static const uint8_t u8str[] = { 0x45, 0xE3, 0x81, 0x8A, 0x8F, 0xE3, 0xE3, 0x98, 0x8F, 0xE3, 0x82, 0x88, 0xE3, 0x81, 0x86, 0xC0, 0x80, 0xF0, 0x9F, 0x8E, 0xA4, 0xF0, 0x82, 0x82, 0xAC, 0xED, 0xA0, 0x81, 0 };
+	//                               +     +2                inv   +2    inv   inv   inv   +2                +2                ovl NUL +1  +3                      overlong +3             unpaired +2
+	static const char32_t u32str[] = { 0x45, 0x304A, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0x3088, 0x3046, 0xFFFD, 0x1F3A4, 0x20AC, 0xFFFD, 0 };
+	String s;
+	Error err = s.parse_utf8((const char *)u8str);
+	CHECK(err == ERR_INVALID_DATA);
+	CHECK(s == u32str);
+
+	CharString cs = (const char *)u8str;
+	CHECK(String::utf8(cs) == s);
+	ERR_PRINT_ON
+}
+
+TEST_CASE("[String] Invalid UTF16 (non-standard)") {
 	ERR_PRINT_OFF
 	static const char16_t u16str[] = { 0x0045, 0x304A, 0x3088, 0x3046, 0xDFA4, 0 };
+	//                                 +       +       +       +       unpaired
+	static const char32_t u32str[] = { 0x0045, 0x304A, 0x3088, 0x3046, 0xDFA4, 0 };
 	String s;
-	bool err = s.parse_utf16(u16str);
-	CHECK(err);
-	CHECK(s == String());
+	Error err = s.parse_utf16(u16str);
+	CHECK(err == ERR_PARSE_ERROR);
+	CHECK(s == u32str);
 
 	Char16String cs = u16str;
-	CHECK(String::utf16(cs) == String());
+	CHECK(String::utf16(cs) == s);
 	ERR_PRINT_ON
 }
 
@@ -192,6 +226,12 @@ TEST_CASE("[String] Comparisons (equal)") {
 	CHECK(s == U"Test Compare");
 	CHECK(s == L"Test Compare");
 	CHECK(s == String("Test Compare"));
+
+	CharString empty = "";
+	CharString cs = "Test Compare";
+	CHECK(!(empty == cs));
+	CHECK(!(cs == empty));
+	CHECK(cs == CharString("Test Compare"));
 }
 
 TEST_CASE("[String] Comparisons (not equal)") {
@@ -244,6 +284,32 @@ TEST_CASE("[String] Testing for empty string") {
 	CHECK(String("").is_empty());
 }
 
+TEST_CASE("[String] Contains") {
+	String s = "C:\\Godot\\project\\string_test.tscn";
+	CHECK(s.contains(":\\"));
+	CHECK(s.contains("Godot"));
+	CHECK(s.contains(String("project\\string_test")));
+	CHECK(s.contains(String("\\string_test.tscn")));
+
+	CHECK(!s.contains("://"));
+	CHECK(!s.contains("Godoh"));
+	CHECK(!s.contains(String("project\\string test")));
+	CHECK(!s.contains(String("\\char_test.tscn")));
+}
+
+TEST_CASE("[String] Contains case insensitive") {
+	String s = "C:\\Godot\\project\\string_test.tscn";
+	CHECK(s.containsn("Godot"));
+	CHECK(s.containsn("godot"));
+	CHECK(s.containsn(String("Project\\string_test")));
+	CHECK(s.containsn(String("\\string_Test.tscn")));
+
+	CHECK(!s.containsn("Godoh"));
+	CHECK(!s.containsn("godoh"));
+	CHECK(!s.containsn(String("project\\string test")));
+	CHECK(!s.containsn(String("\\char_test.tscn")));
+}
+
 TEST_CASE("[String] Test chr") {
 	CHECK(String::chr('H') == "H");
 	CHECK(String::chr(0x3012)[0] == 0x3012);
@@ -283,6 +349,16 @@ TEST_CASE("[String] Natural compare function test") {
 	CHECK(a.naturalnocasecmp_to("img10.png") < 0);
 }
 
+TEST_CASE("[String] File compare function test") {
+	String a = "_img2.png";
+	String b = "img2.png";
+
+	CHECK(a.nocasecmp_to("img10.png") > 0);
+	CHECK_MESSAGE(a.filenocasecmp_to("img10.png") < 0, "Should sort before letters.");
+	CHECK_MESSAGE(a.filenocasecmp_to(".img10.png") > 0, "Should sort after period.");
+	CHECK(b.filenocasecmp_to("img3.png") < 0);
+}
+
 TEST_CASE("[String] hex_encode_buffer") {
 	static const uint8_t u8str[] = { 0x45, 0xE3, 0x81, 0x8A, 0x8F, 0xE3 };
 	String s = String::hex_encode_buffer(u8str, 6);
@@ -297,18 +373,37 @@ TEST_CASE("[String] Substr") {
 
 TEST_CASE("[String] Find") {
 	String s = "Pretty Woman Woman";
-	CHECK(s.find("tty") == 3);
-	CHECK(s.find("Wo", 9) == 13);
-	CHECK(s.find("Revenge of the Monster Truck") == -1);
-	CHECK(s.rfind("man") == 15);
+	MULTICHECK_STRING_EQ(s, find, "tty", 3);
+	MULTICHECK_STRING_EQ(s, find, "Revenge of the Monster Truck", -1);
+	MULTICHECK_STRING_INT_EQ(s, find, "Wo", 9, 13);
+	MULTICHECK_STRING_EQ(s, find, "", -1);
+	MULTICHECK_STRING_EQ(s, find, "Pretty Woman Woman", 0);
+	MULTICHECK_STRING_EQ(s, find, "WOMAN", -1);
+	MULTICHECK_STRING_INT_EQ(s, find, "", 9, -1);
+
+	MULTICHECK_STRING_EQ(s, rfind, "", -1);
+	MULTICHECK_STRING_EQ(s, rfind, "foo", -1);
+	MULTICHECK_STRING_EQ(s, rfind, "Pretty Woman Woman", 0);
+	MULTICHECK_STRING_EQ(s, rfind, "man", 15);
+	MULTICHECK_STRING_EQ(s, rfind, "WOMAN", -1);
+	MULTICHECK_STRING_INT_EQ(s, rfind, "", 15, -1);
 }
 
-TEST_CASE("[String] Find no case") {
+TEST_CASE("[String] Find case insensitive") {
 	String s = "Pretty Whale Whale";
-	CHECK(s.findn("WHA") == 7);
-	CHECK(s.findn("WHA", 9) == 13);
-	CHECK(s.findn("Revenge of the Monster SawFish") == -1);
-	CHECK(s.rfindn("WHA") == 13);
+	MULTICHECK_STRING_EQ(s, findn, "WHA", 7);
+	MULTICHECK_STRING_INT_EQ(s, findn, "WHA", 9, 13);
+	MULTICHECK_STRING_EQ(s, findn, "Revenge of the Monster SawFish", -1);
+	MULTICHECK_STRING_EQ(s, findn, "", -1);
+	MULTICHECK_STRING_EQ(s, findn, "wha", 7);
+	MULTICHECK_STRING_EQ(s, findn, "Wha", 7);
+	MULTICHECK_STRING_INT_EQ(s, findn, "", 3, -1);
+
+	MULTICHECK_STRING_EQ(s, rfindn, "WHA", 13);
+	MULTICHECK_STRING_EQ(s, rfindn, "", -1);
+	MULTICHECK_STRING_EQ(s, rfindn, "wha", 13);
+	MULTICHECK_STRING_EQ(s, rfindn, "Wha", 13);
+	MULTICHECK_STRING_INT_EQ(s, rfindn, "", 13, -1);
 }
 
 TEST_CASE("[String] Find MK") {
@@ -329,17 +424,21 @@ TEST_CASE("[String] Find MK") {
 
 TEST_CASE("[String] Find and replace") {
 	String s = "Happy Birthday, Anna!";
-	s = s.replace("Birthday", "Halloween");
-	CHECK(s == "Happy Halloween, Anna!");
-
-	s = s.replace_first("H", "W");
-	CHECK(s == "Wappy Halloween, Anna!");
+	MULTICHECK_STRING_STRING_EQ(s, replace, "Birthday", "Halloween", "Happy Halloween, Anna!");
+	MULTICHECK_STRING_STRING_EQ(s, replace_first, "y", "Y", "HappY Birthday, Anna!");
+	MULTICHECK_STRING_STRING_EQ(s, replacen, "Y", "Y", "HappY BirthdaY, Anna!");
 }
 
 TEST_CASE("[String] Insertion") {
 	String s = "Who is Frederic?";
 	s = s.insert(s.find("?"), " Chopin");
 	CHECK(s == "Who is Frederic Chopin?");
+}
+
+TEST_CASE("[String] Erasing") {
+	String s = "Josephine is such a cute girl!";
+	s = s.erase(s.find("cute "), String("cute ").length());
+	CHECK(s == "Josephine is such a girl!");
 }
 
 TEST_CASE("[String] Number to string") {
@@ -355,12 +454,22 @@ TEST_CASE("[String] Number to string") {
 	CHECK(String::num(42.100023, 4) == "42.1"); // No trailing zeros.
 
 	// String::num_real tests.
+	CHECK(String::num_real(1.0) == "1.0");
+	CHECK(String::num_real(1.0, false) == "1");
+	CHECK(String::num_real(9.9) == "9.9");
+	CHECK(String::num_real(9.99) == "9.99");
+	CHECK(String::num_real(9.999) == "9.999");
+	CHECK(String::num_real(9.9999) == "9.9999");
 	CHECK(String::num_real(3.141593) == "3.141593");
 	CHECK(String::num_real(3.141) == "3.141"); // No trailing zeros.
 #ifdef REAL_T_IS_DOUBLE
+	CHECK_MESSAGE(String::num_real(123.456789) == "123.456789", "Prints the appropriate amount of digits for real_t = double.");
+	CHECK_MESSAGE(String::num_real(-123.456789) == "-123.456789", "Prints the appropriate amount of digits for real_t = double.");
 	CHECK_MESSAGE(String::num_real(Math_PI) == "3.14159265358979", "Prints the appropriate amount of digits for real_t = double.");
-	CHECK_MESSAGE(String::num_real(3.1415f) == "3.14149999618530", "Prints more digits of 32-bit float when real_t = double (ones that would be reliable for double).");
+	CHECK_MESSAGE(String::num_real(3.1415f) == "3.1414999961853", "Prints more digits of 32-bit float when real_t = double (ones that would be reliable for double) and no trailing zero.");
 #else
+	CHECK_MESSAGE(String::num_real(123.456789) == "123.4568", "Prints the appropriate amount of digits for real_t = float.");
+	CHECK_MESSAGE(String::num_real(-123.456789) == "-123.4568", "Prints the appropriate amount of digits for real_t = float.");
 	CHECK_MESSAGE(String::num_real(Math_PI) == "3.141593", "Prints the appropriate amount of digits for real_t = float.");
 	CHECK_MESSAGE(String::num_real(3.1415f) == "3.1415", "Prints only reliable digits of 32-bit float when real_t = float.");
 #endif // REAL_T_IS_DOUBLE
@@ -387,68 +496,167 @@ TEST_CASE("[String] Number to string") {
 }
 
 TEST_CASE("[String] String to integer") {
-	static const char *nums[4] = { "1237461283", "- 22", "0", " - 1123412" };
-	static const int num[4] = { 1237461283, -22, 0, -1123412 };
+	static const char *nums[14] = { "1237461283", "- 22", "0", " - 1123412", "", "10_000_000", "-1_2_3_4", "10__000", "  1  2  34 ", "-0", "007", "--45", "---46", "-7-2" };
+	static const int num[14] = { 1237461283, -22, 0, -1123412, 0, 10000000, -1234, 10000, 1234, 0, 7, 45, -46, -72 };
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 14; i++) {
 		CHECK(String(nums[i]).to_int() == num[i]);
 	}
+	CHECK(String("0b1011").to_int() == 1011); // Looks like a binary number, but to_int() handles this as a base-10 number, "b" is just ignored.
+	CHECK(String("0x1012").to_int() == 1012); // Looks like a hexadecimal number, but to_int() handles this as a base-10 number, "x" is just ignored.
+
+	ERR_PRINT_OFF
+	CHECK(String("999999999999999999999999999999999999999999999999999999999").to_int() == INT64_MAX); // Too large, largest possible is returned.
+	CHECK(String("-999999999999999999999999999999999999999999999999999999999").to_int() == INT64_MIN); // Too small, smallest possible is returned.
+	ERR_PRINT_ON
 }
 
 TEST_CASE("[String] Hex to integer") {
-	static const char *nums[4] = { "0xFFAE", "22", "0", "AADDAD" };
-	static const int64_t num[4] = { 0xFFAE, 0x22, 0, 0xAADDAD };
+	static const char *nums[12] = { "0xFFAE", "22", "0", "AADDAD", "0x7FFFFFFFFFFFFFFF", "-0xf", "", "000", "000f", "0xaA", "-ff", "-" };
+	static const int64_t num[12] = { 0xFFAE, 0x22, 0, 0xAADDAD, 0x7FFFFFFFFFFFFFFF, -0xf, 0, 0, 0xf, 0xaa, -0xff, 0x0 };
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 12; i++) {
 		CHECK(String(nums[i]).hex_to_int() == num[i]);
 	}
+
+	// Invalid hex strings should return 0.
+	static const char *invalid_nums[15] = { "qwerty", "QWERTY", "0xqwerty", "0x00qwerty", "qwerty00", "0x", "0x__", "__", "x12", "+", " ff", "ff ", "f f", "+ff", "--0x78" };
+
+	ERR_PRINT_OFF
+	for (int i = 0; i < 15; i++) {
+		CHECK(String(invalid_nums[i]).hex_to_int() == 0);
+	}
+
+	CHECK(String("0xFFFFFFFFFFFFFFFFFFFFFFF").hex_to_int() == INT64_MAX); // Too large, largest possible is returned.
+	CHECK(String("-0xFFFFFFFFFFFFFFFFFFFFFFF").hex_to_int() == INT64_MIN); // Too small, smallest possible is returned.
+	ERR_PRINT_ON
+}
+
+TEST_CASE("[String] Bin to integer") {
+	static const char *nums[10] = { "", "0", "0b0", "0b1", "0b", "1", "0b1010", "-0b11", "-1010", "0b0111111111111111111111111111111111111111111111111111111111111111" };
+	static const int64_t num[10] = { 0, 0, 0, 1, 0, 1, 10, -3, -10, 0x7FFFFFFFFFFFFFFF };
+
+	for (int i = 0; i < 10; i++) {
+		CHECK(String(nums[i]).bin_to_int() == num[i]);
+	}
+
+	// Invalid bin strings should return 0. The long "0x11...11" is just too long for a 64 bit int.
+	static const char *invalid_nums[16] = { "qwerty", "QWERTY", "0bqwerty", "0b00qwerty", "qwerty00", "0x__", "0b__", "__", "b12", "+", "-", "0x12ab", " 11", "11 ", "1 1", "--0b11" };
+
+	for (int i = 0; i < 16; i++) {
+		CHECK(String(invalid_nums[i]).bin_to_int() == 0);
+	}
+
+	ERR_PRINT_OFF
+	CHECK(String("0b111111111111111111111111111111111111111111111111111111111111111111111111111111111").bin_to_int() == INT64_MAX); // Too large, largest possible is returned.
+	CHECK(String("-0b111111111111111111111111111111111111111111111111111111111111111111111111111111111").bin_to_int() == INT64_MIN); // Too small, smallest possible is returned.
+	ERR_PRINT_ON
 }
 
 TEST_CASE("[String] String to float") {
-	static const char *nums[4] = { "-12348298412.2", "0.05", "2.0002", " -0.0001" };
-	static const double num[4] = { -12348298412.2, 0.05, 2.0002, -0.0001 };
+	static const char *nums[12] = { "-12348298412.2", "0.05", "2.0002", " -0.0001", "0", "000", "123", "0.0", "000.000", "000.007", "234__", "3..14" };
+	static const double num[12] = { -12348298412.2, 0.05, 2.0002, -0.0001, 0.0, 0.0, 123.0, 0.0, 0.0, 0.007, 234.0, 3.0 };
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 12; i++) {
 		CHECK(!(ABS(String(nums[i]).to_float() - num[i]) > 0.00001));
 	}
-}
 
-TEST_CASE("[String] CamelCase to underscore") {
-	CHECK(String("TestTestStringGD").camelcase_to_underscore(false) == String("Test_Test_String_GD"));
-	CHECK(String("TestTestStringGD").camelcase_to_underscore(true) == String("test_test_string_gd"));
+	// Invalid float strings should return 0.
+	static const char *invalid_nums[6] = { "qwerty", "qwerty123", "0xffff", "0b1010", "--3.13", "__345" };
+
+	for (int i = 0; i < 6; i++) {
+		CHECK(String(invalid_nums[i]).to_float() == 0);
+	}
+
+	// Very large exponents.
+	CHECK(String("1e308").to_float() == 1e308);
+	CHECK(String("-1e308").to_float() == -1e308);
+
+	// Exponent is so high that value is INFINITY/-INFINITY.
+	CHECK(String("1e309").to_float() == INFINITY);
+	CHECK(String("1e511").to_float() == INFINITY);
+	CHECK(String("-1e309").to_float() == -INFINITY);
+	CHECK(String("-1e511").to_float() == -INFINITY);
+
+	// Exponent is so high that a warning message is printed. Value is INFINITY/-INFINITY.
+	ERR_PRINT_OFF
+	CHECK(String("1e512").to_float() == INFINITY);
+	CHECK(String("-1e512").to_float() == -INFINITY);
+	ERR_PRINT_ON
 }
 
 TEST_CASE("[String] Slicing") {
 	String s = "Mars,Jupiter,Saturn,Uranus";
-
 	const char *slices[4] = { "Mars", "Jupiter", "Saturn", "Uranus" };
-	for (int i = 0; i < s.get_slice_count(","); i++) {
-		CHECK(s.get_slice(",", i) == slices[i]);
-	}
+	MULTICHECK_GET_SLICE(s, ",", slices);
+}
+
+TEST_CASE("[String] Begins with") {
+	// Test cases for true:
+	MULTICHECK_STRING_EQ(String("res://foobar"), begins_with, "res://", true);
+	MULTICHECK_STRING_EQ(String("abc"), begins_with, "abc", true);
+	MULTICHECK_STRING_EQ(String("abc"), begins_with, "", true);
+	MULTICHECK_STRING_EQ(String(""), begins_with, "", true);
+
+	// Test cases for false:
+	MULTICHECK_STRING_EQ(String("res"), begins_with, "res://", false);
+	MULTICHECK_STRING_EQ(String("abcdef"), begins_with, "foo", false);
+	MULTICHECK_STRING_EQ(String("abc"), begins_with, "ax", false);
+	MULTICHECK_STRING_EQ(String(""), begins_with, "abc", false);
+
+	// Test "const char *" version also with nullptr.
+	String s("foo");
+	bool state = s.begins_with(nullptr) == false;
+	CHECK_MESSAGE(state, "nullptr check failed");
+
+	String empty("");
+	state = empty.begins_with(nullptr) == false;
+	CHECK_MESSAGE(state, "nullptr check with empty string failed");
+}
+
+TEST_CASE("[String] Ends with") {
+	// Test cases for true:
+	MULTICHECK_STRING_EQ(String("res://foobar"), ends_with, "foobar", true);
+	MULTICHECK_STRING_EQ(String("abc"), ends_with, "abc", true);
+	MULTICHECK_STRING_EQ(String("abc"), ends_with, "", true);
+	MULTICHECK_STRING_EQ(String(""), ends_with, "", true);
+
+	// Test cases for false:
+	MULTICHECK_STRING_EQ(String("res"), ends_with, "res://", false);
+	MULTICHECK_STRING_EQ(String("abcdef"), ends_with, "foo", false);
+	MULTICHECK_STRING_EQ(String("abc"), ends_with, "ax", false);
+	MULTICHECK_STRING_EQ(String(""), ends_with, "abc", false);
+
+	// Test "const char *" version also with nullptr.
+	String s("foo");
+	bool state = s.ends_with(nullptr) == false;
+	CHECK_MESSAGE(state, "nullptr check failed");
+
+	String empty("");
+	state = empty.ends_with(nullptr) == false;
+	CHECK_MESSAGE(state, "nullptr check with empty string failed");
 }
 
 TEST_CASE("[String] Splitting") {
 	String s = "Mars,Jupiter,Saturn,Uranus";
-	Vector<String> l;
-
 	const char *slices_l[3] = { "Mars", "Jupiter", "Saturn,Uranus" };
+	MULTICHECK_SPLIT(s, split, ",", true, 2, slices_l, 3);
+
 	const char *slices_r[3] = { "Mars,Jupiter", "Saturn", "Uranus" };
+	MULTICHECK_SPLIT(s, rsplit, ",", true, 2, slices_r, 3);
 
-	l = s.split(",", true, 2);
-	CHECK(l.size() == 3);
-	for (int i = 0; i < l.size(); i++) {
-		CHECK(l[i] == slices_l[i]);
-	}
+	s = "test";
+	const char *slices_3[4] = { "t", "e", "s", "t" };
+	MULTICHECK_SPLIT(s, split, "", true, 0, slices_3, 4);
 
-	l = s.rsplit(",", true, 2);
-	CHECK(l.size() == 3);
-	for (int i = 0; i < l.size(); i++) {
-		CHECK(l[i] == slices_r[i]);
-	}
+	s = "";
+	const char *slices_4[1] = { "" };
+	MULTICHECK_SPLIT(s, split, "", true, 0, slices_4, 1);
+	MULTICHECK_SPLIT(s, split, "", false, 0, slices_4, 0);
 
 	s = "Mars Jupiter Saturn Uranus";
 	const char *slices_s[4] = { "Mars", "Jupiter", "Saturn", "Uranus" };
-	l = s.split_spaces();
+	Vector<String> l = s.split_spaces();
 	for (int i = 0; i < l.size(); i++) {
 		CHECK(l[i] == slices_s[i]);
 	}
@@ -456,21 +664,22 @@ TEST_CASE("[String] Splitting") {
 	s = "1.2;2.3 4.5";
 	const double slices_d[3] = { 1.2, 2.3, 4.5 };
 
-	Vector<float> f;
-	f = s.split_floats(";");
-	CHECK(f.size() == 2);
-	for (int i = 0; i < f.size(); i++) {
-		CHECK(ABS(f[i] - slices_d[i]) <= 0.00001);
+	Vector<double> d_arr;
+	d_arr = s.split_floats(";");
+	CHECK(d_arr.size() == 2);
+	for (int i = 0; i < d_arr.size(); i++) {
+		CHECK(ABS(d_arr[i] - slices_d[i]) <= 0.00001);
 	}
 
 	Vector<String> keys;
 	keys.push_back(";");
 	keys.push_back(" ");
 
-	f = s.split_floats_mk(keys);
-	CHECK(f.size() == 3);
-	for (int i = 0; i < f.size(); i++) {
-		CHECK(ABS(f[i] - slices_d[i]) <= 0.00001);
+	Vector<float> f_arr;
+	f_arr = s.split_floats_mk(keys);
+	CHECK(f_arr.size() == 3);
+	for (int i = 0; i < f_arr.size(); i++) {
+		CHECK(ABS(f_arr[i] - slices_d[i]) <= 0.00001);
 	}
 
 	s = "1;2 4";
@@ -488,58 +697,6 @@ TEST_CASE("[String] Splitting") {
 	for (int i = 0; i < ii.size(); i++) {
 		CHECK(ii[i] == slices_i[i]);
 	}
-}
-
-struct test_27_data {
-	char const *data;
-	char const *part;
-	bool expected;
-};
-
-TEST_CASE("[String] Begins with") {
-	test_27_data tc[] = {
-		{ "res://foobar", "res://", true },
-		{ "res", "res://", false },
-		{ "abc", "abc", true }
-	};
-	size_t count = sizeof(tc) / sizeof(tc[0]);
-	bool state = true;
-	for (size_t i = 0; state && i < count; ++i) {
-		String s = tc[i].data;
-		state = s.begins_with(tc[i].part) == tc[i].expected;
-		if (state) {
-			String sb = tc[i].part;
-			state = s.begins_with(sb) == tc[i].expected;
-		}
-		CHECK(state);
-		if (!state) {
-			break;
-		}
-	};
-	CHECK(state);
-}
-
-TEST_CASE("[String] Ends with") {
-	test_27_data tc[] = {
-		{ "res://foobar", "foobar", true },
-		{ "res", "res://", false },
-		{ "abc", "abc", true }
-	};
-	size_t count = sizeof(tc) / sizeof(tc[0]);
-	bool state = true;
-	for (size_t i = 0; state && i < count; ++i) {
-		String s = tc[i].data;
-		state = s.ends_with(tc[i].part) == tc[i].expected;
-		if (state) {
-			String sb = tc[i].part;
-			state = s.ends_with(sb) == tc[i].expected;
-		}
-		CHECK(state);
-		if (!state) {
-			break;
-		}
-	};
-	CHECK(state);
 }
 
 TEST_CASE("[String] format") {
@@ -566,7 +723,7 @@ TEST_CASE("[String] sprintf") {
 	output = format.sprintf(args, &error);
 	REQUIRE(error == false);
 	CHECK(output == String("fish % frog"));
-	//////// INTS
+	///// Ints
 
 	// Int
 	format = "fish %d frog";
@@ -616,6 +773,40 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish -5 frog"));
 
+	// Negative int left padded with spaces.
+	format = "fish %5d frog";
+	args.clear();
+	args.push_back(-5);
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish    -5 frog"));
+
+	// Negative int left padded with zeros.
+	format = "fish %05d frog";
+	args.clear();
+	args.push_back(-5);
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish -0005 frog"));
+
+	// Negative int right padded with spaces.
+	format = "fish %-5d frog";
+	args.clear();
+	args.push_back(-5);
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish -5    frog"));
+
+	// Negative int right padded with zeros. (0 ignored)
+	format = "fish %-05d frog";
+	args.clear();
+	args.push_back(-5);
+	ERR_PRINT_OFF; // Silence warning about 0 ignored.
+	output = format.sprintf(args, &error);
+	ERR_PRINT_ON;
+	REQUIRE(error == false);
+	CHECK(output == String("fish -5    frog"));
+
 	// Hex (lower)
 	format = "fish %x frog";
 	args.clear();
@@ -640,7 +831,7 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish 143 frog"));
 
-	////// REALS
+	///// Reals
 
 	// Real
 	format = "fish %f frog";
@@ -650,7 +841,7 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish 99.990000 frog"));
 
-	// Real left-padded
+	// Real left-padded.
 	format = "fish %11f frog";
 	args.clear();
 	args.push_back(99.99);
@@ -658,7 +849,15 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish   99.990000 frog"));
 
-	// Real right-padded
+	// Real (infinity) left-padded
+	format = "fish %11f frog";
+	args.clear();
+	args.push_back(INFINITY);
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish         inf frog"));
+
+	// Real right-padded.
 	format = "fish %-11f frog";
 	args.clear();
 	args.push_back(99.99);
@@ -682,7 +881,23 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish +99.990000 frog"));
 
-	// Real with 1 decimals.
+	// Real with sign (negative zero).
+	format = "fish %+f frog";
+	args.clear();
+	args.push_back(-0.0);
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish -0.000000 frog"));
+
+	// Real with sign (positive zero).
+	format = "fish %+f frog";
+	args.clear();
+	args.push_back(0.0);
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish +0.000000 frog"));
+
+	// Real with 1 decimal.
 	format = "fish %.1f frog";
 	args.clear();
 	args.push_back(99.99);
@@ -706,7 +921,115 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish 100 frog"));
 
-	/////// Strings.
+	// Negative real right padded with zeros. (0 ignored)
+	format = "fish %-011f frog";
+	args.clear();
+	args.push_back(-99.99);
+	ERR_PRINT_OFF; // Silence warning about 0 ignored.
+	output = format.sprintf(args, &error);
+	ERR_PRINT_ON;
+	REQUIRE(error == false);
+	CHECK(output == String("fish -99.990000  frog"));
+
+	///// Vectors
+
+	// Vector2
+	format = "fish %v frog";
+	args.clear();
+	args.push_back(Variant(Vector2(19.99, 1.00)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (19.990000, 1.000000) frog"));
+
+	// Vector3
+	format = "fish %v frog";
+	args.clear();
+	args.push_back(Variant(Vector3(19.99, 1.00, -2.05)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (19.990000, 1.000000, -2.050000) frog"));
+
+	// Vector4
+	format = "fish %v frog";
+	args.clear();
+	args.push_back(Variant(Vector4(19.99, 1.00, -2.05, 5.5)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (19.990000, 1.000000, -2.050000, 5.500000) frog"));
+
+	// Vector with negative values.
+	format = "fish %v frog";
+	args.clear();
+	args.push_back(Variant(Vector2(-19.99, -1.00)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (-19.990000, -1.000000) frog"));
+
+	// Vector left-padded.
+	format = "fish %11v frog";
+	args.clear();
+	args.push_back(Variant(Vector3(19.99, 1.00, -2.05)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (  19.990000,    1.000000,   -2.050000) frog"));
+
+	// Vector left-padded with inf/nan
+	format = "fish %11v frog";
+	args.clear();
+	args.push_back(Variant(Vector2(INFINITY, NAN)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (        inf,         nan) frog"));
+
+	// Vector right-padded.
+	format = "fish %-11v frog";
+	args.clear();
+	args.push_back(Variant(Vector3(19.99, 1.00, -2.05)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (19.990000  , 1.000000   , -2.050000  ) frog"));
+
+	// Vector left-padded with zeros.
+	format = "fish %011v frog";
+	args.clear();
+	args.push_back(Variant(Vector3(19.99, 1.00, -2.05)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (0019.990000, 0001.000000, -002.050000) frog"));
+
+	// Vector given Vector3i.
+	format = "fish %v frog";
+	args.clear();
+	args.push_back(Variant(Vector3i(19, 1, -2)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (19.000000, 1.000000, -2.000000) frog"));
+
+	// Vector with 1 decimal.
+	format = "fish %.1v frog";
+	args.clear();
+	args.push_back(Variant(Vector3(19.99, 1.00, -2.05)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (20.0, 1.0, -2.0) frog"));
+
+	// Vector with 12 decimals.
+	format = "fish %.12v frog";
+	args.clear();
+	args.push_back(Variant(Vector3(19.00, 1.00, -2.00)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (19.000000000000, 1.000000000000, -2.000000000000) frog"));
+
+	// Vector with no decimals.
+	format = "fish %.v frog";
+	args.clear();
+	args.push_back(Variant(Vector3(19.99, 1.00, -2.05)));
+	output = format.sprintf(args, &error);
+	REQUIRE(error == false);
+	CHECK(output == String("fish (20, 1, -2) frog"));
+
+	///// Strings
 
 	// String
 	format = "fish %s frog";
@@ -716,7 +1039,7 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish cheese frog"));
 
-	// String left-padded
+	// String left-padded.
 	format = "fish %10s frog";
 	args.clear();
 	args.push_back("cheese");
@@ -724,7 +1047,7 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	CHECK(output == String("fish     cheese frog"));
 
-	// String right-padded
+	// String right-padded.
 	format = "fish %-10s frog";
 	args.clear();
 	args.push_back("cheese");
@@ -752,7 +1075,7 @@ TEST_CASE("[String] sprintf") {
 
 	///// Dynamic width
 
-	// String dynamic width
+	// String dynamic width.
 	format = "fish %*s frog";
 	args.clear();
 	args.push_back(10);
@@ -761,7 +1084,7 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	REQUIRE(output == String("fish     cheese frog"));
 
-	// Int dynamic width
+	// Int dynamic width.
 	format = "fish %*d frog";
 	args.clear();
 	args.push_back(10);
@@ -770,7 +1093,7 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error == false);
 	REQUIRE(output == String("fish         99 frog"));
 
-	// Float dynamic width
+	// Float dynamic width.
 	format = "fish %*.*f frog";
 	args.clear();
 	args.push_back(10);
@@ -807,7 +1130,7 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error);
 	CHECK(output == "incomplete format");
 
-	// Bad character in format string
+	// Bad character in format string.
 	format = "fish %&f frog";
 	args.clear();
 	args.push_back("cheese");
@@ -823,14 +1146,14 @@ TEST_CASE("[String] sprintf") {
 	REQUIRE(error);
 	CHECK(output == "too many decimal points in format");
 
-	// * not a number
+	// * not a number or vector.
 	format = "fish %*f frog";
 	args.clear();
 	args.push_back("cheese");
 	args.push_back(99.99);
 	output = format.sprintf(args, &error);
 	REQUIRE(error);
-	CHECK(output == "* wants number");
+	CHECK(output == "* wants number or vector");
 
 	// Character too long.
 	format = "fish %c frog";
@@ -864,14 +1187,16 @@ TEST_CASE("[String] pad") {
 
 	s = String("10.10");
 	CHECK(s.pad_decimals(4) == U"10.1000");
+	CHECK(s.pad_decimals(1) == U"10.1");
 	CHECK(s.pad_zeros(4) == U"0010.10");
+	CHECK(s.pad_zeros(1) == U"10.10");
 }
 
 TEST_CASE("[String] is_subsequence_of") {
 	String a = "is subsequence of";
 	CHECK(String("sub").is_subsequence_of(a));
 	CHECK(!String("Sub").is_subsequence_of(a));
-	CHECK(String("Sub").is_subsequence_ofi(a));
+	CHECK(String("Sub").is_subsequence_ofn(a));
 }
 
 TEST_CASE("[String] match") {
@@ -909,8 +1234,36 @@ TEST_CASE("[String] IPVX address to string") {
 }
 
 TEST_CASE("[String] Capitalize against many strings") {
-	String input = "bytes2var";
-	String output = "Bytes 2 Var";
+	String input = "2D";
+	String output = "2d";
+	CHECK(input.capitalize() == output);
+
+	input = "2d";
+	output = "2d";
+	CHECK(input.capitalize() == output);
+
+	input = "2db";
+	output = "2 Db";
+	CHECK(input.capitalize() == output);
+
+	input = "HTML5 Html5 html5 html_5";
+	output = "Html 5 Html 5 Html 5 Html 5";
+	CHECK(input.capitalize() == output);
+
+	input = "Node2D Node2d NODE2D NODE_2D node_2d";
+	output = "Node 2d Node 2d Node 2d Node 2d Node 2d";
+	CHECK(input.capitalize() == output);
+
+	input = "Node2DPosition";
+	output = "Node 2d Position";
+	CHECK(input.capitalize() == output);
+
+	input = "Number2Digits";
+	output = "Number 2 Digits";
+	CHECK(input.capitalize() == output);
+
+	input = "bytes2var";
+	output = "Bytes 2 Var";
 	CHECK(input.capitalize() == output);
 
 	input = "linear2db";
@@ -923,10 +1276,6 @@ TEST_CASE("[String] Capitalize against many strings") {
 
 	input = "sha256";
 	output = "Sha 256";
-	CHECK(input.capitalize() == output);
-
-	input = "2db";
-	output = "2 Db";
 	CHECK(input.capitalize() == output);
 
 	input = "PascalCase";
@@ -964,6 +1313,65 @@ TEST_CASE("[String] Capitalize against many strings") {
 	input = "snake_case_function( snake_case_arg )";
 	output = "Snake Case Function( Snake Case Arg )";
 	CHECK(input.capitalize() == output);
+
+	input = U"словоСлово_слово слово";
+	output = U"Слово Слово Слово Слово";
+	CHECK(input.capitalize() == output);
+
+	input = U"λέξηΛέξη_λέξη λέξη";
+	output = U"Λέξη Λέξη Λέξη Λέξη";
+	CHECK(input.capitalize() == output);
+
+	input = U"բառԲառ_բառ բառ";
+	output = U"Բառ Բառ Բառ Բառ";
+	CHECK(input.capitalize() == output);
+}
+
+struct StringCasesTestCase {
+	const char32_t *input;
+	const char32_t *camel_case;
+	const char32_t *pascal_case;
+	const char32_t *snake_case;
+};
+
+TEST_CASE("[String] Checking case conversion methods") {
+	StringCasesTestCase test_cases[] = {
+		/* clang-format off */
+		{ U"2D",                     U"2d",                   U"2d",                   U"2d"                      },
+		{ U"2d",                     U"2d",                   U"2d",                   U"2d"                      },
+		{ U"2db",                    U"2Db",                  U"2Db",                  U"2_db"                    },
+		{ U"Vector3",                U"vector3",              U"Vector3",              U"vector_3"                },
+		{ U"sha256",                 U"sha256",               U"Sha256",               U"sha_256"                 },
+		{ U"Node2D",                 U"node2d",               U"Node2d",               U"node_2d"                 },
+		{ U"RichTextLabel",          U"richTextLabel",        U"RichTextLabel",        U"rich_text_label"         },
+		{ U"HTML5",                  U"html5",                U"Html5",                U"html_5"                  },
+		{ U"Node2DPosition",         U"node2dPosition",       U"Node2dPosition",       U"node_2d_position"        },
+		{ U"Number2Digits",          U"number2Digits",        U"Number2Digits",        U"number_2_digits"         },
+		{ U"get_property_list",      U"getPropertyList",      U"GetPropertyList",      U"get_property_list"       },
+		{ U"get_camera_2d",          U"getCamera2d",          U"GetCamera2d",          U"get_camera_2d"           },
+		{ U"_physics_process",       U"physicsProcess",       U"PhysicsProcess",       U"_physics_process"        },
+		{ U"bytes2var",              U"bytes2Var",            U"Bytes2Var",            U"bytes_2_var"             },
+		{ U"linear2db",              U"linear2Db",            U"Linear2Db",            U"linear_2_db"             },
+		{ U"sha256sum",              U"sha256Sum",            U"Sha256Sum",            U"sha_256_sum"             },
+		{ U"camelCase",              U"camelCase",            U"CamelCase",            U"camel_case"              },
+		{ U"PascalCase",             U"pascalCase",           U"PascalCase",           U"pascal_case"             },
+		{ U"snake_case",             U"snakeCase",            U"SnakeCase",            U"snake_case"              },
+		{ U"Test TEST test",         U"testTestTest",         U"TestTestTest",         U"test_test_test"          },
+		{ U"словоСлово_слово слово", U"словоСловоСловоСлово", U"СловоСловоСловоСлово", U"слово_слово_слово_слово" },
+		{ U"λέξηΛέξη_λέξη λέξη",     U"λέξηΛέξηΛέξηΛέξη",     U"ΛέξηΛέξηΛέξηΛέξη",     U"λέξη_λέξη_λέξη_λέξη"     },
+		{ U"բառԲառ_բառ բառ",         U"բառԲառԲառԲառ",         U"ԲառԲառԲառԲառ",         U"բառ_բառ_բառ_բառ"         },
+		{ nullptr,                   nullptr,                 nullptr,                 nullptr                    },
+		/* clang-format on */
+	};
+
+	int idx = 0;
+	while (test_cases[idx].input != nullptr) {
+		String input = test_cases[idx].input;
+		CHECK(input.to_camel_case() == test_cases[idx].camel_case);
+		CHECK(input.to_pascal_case() == test_cases[idx].pascal_case);
+		CHECK(input.to_snake_case() == test_cases[idx].snake_case);
+		idx++;
+	}
 }
 
 TEST_CASE("[String] Checking string is empty when it should be") {
@@ -1065,14 +1473,14 @@ TEST_CASE("[String] lstrip and rstrip") {
 #undef STRIP_TEST
 }
 
-TEST_CASE("[String] ensuring empty string into parse_utf8 passes empty string") {
+TEST_CASE("[String] Ensuring empty string into parse_utf8 passes empty string") {
 	String empty;
-	CHECK(empty.parse_utf8(nullptr, -1));
+	CHECK(empty.parse_utf8(nullptr, -1) == ERR_INVALID_DATA);
 }
 
 TEST_CASE("[String] Cyrillic to_lower()") {
-	String upper = String::utf8("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ");
-	String lower = String::utf8("абвгдеёжзийклмнопрстуфхцчшщъыьэюя");
+	String upper = U"АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+	String lower = U"абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
 
 	String test = upper.to_lower();
 
@@ -1082,39 +1490,62 @@ TEST_CASE("[String] Cyrillic to_lower()") {
 }
 
 TEST_CASE("[String] Count and countn functionality") {
-#define COUNT_TEST(x)             \
-	{                             \
-		bool success = x;         \
-		state = state && success; \
-	}
+	String s = String("");
+	MULTICHECK_STRING_EQ(s, count, "Test", 0);
 
-	bool state = true;
+	s = "Test";
+	MULTICHECK_STRING_EQ(s, count, "", 0);
 
-	COUNT_TEST(String("").count("Test") == 0);
-	COUNT_TEST(String("Test").count("") == 0);
-	COUNT_TEST(String("Test").count("test") == 0);
-	COUNT_TEST(String("Test").count("TEST") == 0);
-	COUNT_TEST(String("TEST").count("TEST") == 1);
-	COUNT_TEST(String("Test").count("Test") == 1);
-	COUNT_TEST(String("aTest").count("Test") == 1);
-	COUNT_TEST(String("Testa").count("Test") == 1);
-	COUNT_TEST(String("TestTestTest").count("Test") == 3);
-	COUNT_TEST(String("TestTestTest").count("TestTest") == 1);
-	COUNT_TEST(String("TestGodotTestGodotTestGodot").count("Test") == 3);
+	s = "Test";
+	MULTICHECK_STRING_EQ(s, count, "test", 0);
 
-	COUNT_TEST(String("TestTestTestTest").count("Test", 4, 8) == 1);
-	COUNT_TEST(String("TestTestTestTest").count("Test", 4, 12) == 2);
-	COUNT_TEST(String("TestTestTestTest").count("Test", 4, 16) == 3);
-	COUNT_TEST(String("TestTestTestTest").count("Test", 4) == 3);
+	s = "Test";
+	MULTICHECK_STRING_EQ(s, count, "TEST", 0);
 
-	COUNT_TEST(String("Test").countn("test") == 1);
-	COUNT_TEST(String("Test").countn("TEST") == 1);
-	COUNT_TEST(String("testTest-Testatest").countn("tEst") == 4);
-	COUNT_TEST(String("testTest-TeStatest").countn("tEsT", 4, 16) == 2);
+	s = "TEST";
+	MULTICHECK_STRING_EQ(s, count, "TEST", 1);
 
-	CHECK(state);
+	s = "Test";
+	MULTICHECK_STRING_EQ(s, count, "Test", 1);
 
-#undef COUNT_TEST
+	s = "aTest";
+	MULTICHECK_STRING_EQ(s, count, "Test", 1);
+
+	s = "Testa";
+	MULTICHECK_STRING_EQ(s, count, "Test", 1);
+
+	s = "TestTestTest";
+	MULTICHECK_STRING_EQ(s, count, "Test", 3);
+
+	s = "TestTestTest";
+	MULTICHECK_STRING_EQ(s, count, "TestTest", 1);
+
+	s = "TestGodotTestGodotTestGodot";
+	MULTICHECK_STRING_EQ(s, count, "Test", 3);
+
+	s = "TestTestTestTest";
+	MULTICHECK_STRING_INT_INT_EQ(s, count, "Test", 4, 8, 1);
+
+	s = "TestTestTestTest";
+	MULTICHECK_STRING_INT_INT_EQ(s, count, "Test", 4, 12, 2);
+
+	s = "TestTestTestTest";
+	MULTICHECK_STRING_INT_INT_EQ(s, count, "Test", 4, 16, 3);
+
+	s = "TestTestTestTest";
+	MULTICHECK_STRING_INT_EQ(s, count, "Test", 4, 3);
+
+	s = "Test";
+	MULTICHECK_STRING_EQ(s, countn, "test", 1);
+
+	s = "Test";
+	MULTICHECK_STRING_EQ(s, countn, "TEST", 1);
+
+	s = "testTest-Testatest";
+	MULTICHECK_STRING_EQ(s, countn, "tEst", 4);
+
+	s = "testTest-TeStatest";
+	MULTICHECK_STRING_INT_INT_EQ(s, countn, "tEsT", 4, 16, 2);
 }
 
 TEST_CASE("[String] Bigrams") {
@@ -1132,6 +1563,25 @@ TEST_CASE("[String] c-escape/unescape") {
 	CHECK(s.c_escape().c_unescape() == s);
 }
 
+TEST_CASE("[String] indent") {
+	static const char *input[] = {
+		"",
+		"aaa\nbbb",
+		"\tcontains\n\tindent",
+		"empty\n\nline",
+	};
+	static const char *expected[] = {
+		"",
+		"\taaa\n\tbbb",
+		"\t\tcontains\n\t\tindent",
+		"\tempty\n\n\tline",
+	};
+
+	for (int i = 0; i < 3; i++) {
+		CHECK(String(input[i]).indent("\t") == expected[i]);
+	}
+}
+
 TEST_CASE("[String] dedent") {
 	String s = "      aaa\n    bbb";
 	String t = "aaa\nbbb";
@@ -1139,21 +1589,23 @@ TEST_CASE("[String] dedent") {
 }
 
 TEST_CASE("[String] Path functions") {
-	static const char *path[7] = { "C:\\Godot\\project\\test.tscn", "/Godot/project/test.xscn", "../Godot/project/test.scn", "Godot\\test.doc", "C:\\test.", "res://test", "/.test" };
-	static const char *base_dir[7] = { "C:\\Godot\\project", "/Godot/project", "../Godot/project", "Godot", "C:\\", "res://", "/" };
-	static const char *base_name[7] = { "C:\\Godot\\project\\test", "/Godot/project/test", "../Godot/project/test", "Godot\\test", "C:\\test", "res://test", "/" };
-	static const char *ext[7] = { "tscn", "xscn", "scn", "doc", "", "", "test" };
-	static const char *file[7] = { "test.tscn", "test.xscn", "test.scn", "test.doc", "test.", "test", ".test" };
-	static const bool abs[7] = { true, true, false, false, true, true, true };
+	static const char *path[8] = { "C:\\Godot\\project\\test.tscn", "/Godot/project/test.xscn", "../Godot/project/test.scn", "Godot\\test.doc", "C:\\test.", "res://test", "user://test", "/.test" };
+	static const char *base_dir[8] = { "C:\\Godot\\project", "/Godot/project", "../Godot/project", "Godot", "C:\\", "res://", "user://", "/" };
+	static const char *base_name[8] = { "C:\\Godot\\project\\test", "/Godot/project/test", "../Godot/project/test", "Godot\\test", "C:\\test", "res://test", "user://test", "/" };
+	static const char *ext[8] = { "tscn", "xscn", "scn", "doc", "", "", "", "test" };
+	static const char *file[8] = { "test.tscn", "test.xscn", "test.scn", "test.doc", "test.", "test", "test", ".test" };
+	static const char *simplified[8] = { "C:/Godot/project/test.tscn", "/Godot/project/test.xscn", "Godot/project/test.scn", "Godot/test.doc", "C:/test.", "res://test", "user://test", "/.test" };
+	static const bool abs[8] = { true, true, false, false, true, true, true, true };
 
-	for (int i = 0; i < 7; i++) {
+	for (int i = 0; i < 8; i++) {
 		CHECK(String(path[i]).get_base_dir() == base_dir[i]);
 		CHECK(String(path[i]).get_basename() == base_name[i]);
 		CHECK(String(path[i]).get_extension() == ext[i]);
 		CHECK(String(path[i]).get_file() == file[i]);
 		CHECK(String(path[i]).is_absolute_path() == abs[i]);
 		CHECK(String(path[i]).is_relative_path() != abs[i]);
-		CHECK(String(path[i]).simplify_path().get_base_dir().plus_file(file[i]) == String(path[i]).simplify_path());
+		CHECK(String(path[i]).simplify_path() == String(simplified[i]));
+		CHECK(String(path[i]).simplify_path().get_base_dir().path_join(file[i]) == String(path[i]).simplify_path());
 	}
 
 	static const char *file_name[3] = { "test.tscn", "test://.xscn", "?tes*t.scn" };
@@ -1266,9 +1718,19 @@ TEST_CASE("[String] Strip edges") {
 
 TEST_CASE("[String] Trim") {
 	String s = "aaaTestbbb";
-	CHECK(s.trim_prefix("aaa") == "Testbbb");
-	CHECK(s.trim_suffix("bbb") == "aaaTest");
-	CHECK(s.trim_suffix("Test") == s);
+	MULTICHECK_STRING_EQ(s, trim_prefix, "aaa", "Testbbb");
+	MULTICHECK_STRING_EQ(s, trim_prefix, "Test", s);
+	MULTICHECK_STRING_EQ(s, trim_prefix, "", s);
+	MULTICHECK_STRING_EQ(s, trim_prefix, "aaaTestbbb", "");
+	MULTICHECK_STRING_EQ(s, trim_prefix, "bbb", s);
+	MULTICHECK_STRING_EQ(s, trim_prefix, "AAA", s);
+
+	MULTICHECK_STRING_EQ(s, trim_suffix, "bbb", "aaaTest");
+	MULTICHECK_STRING_EQ(s, trim_suffix, "Test", s);
+	MULTICHECK_STRING_EQ(s, trim_suffix, "", s);
+	MULTICHECK_STRING_EQ(s, trim_suffix, "aaaTestbbb", "");
+	MULTICHECK_STRING_EQ(s, trim_suffix, "aaa", s);
+	MULTICHECK_STRING_EQ(s, trim_suffix, "BBB", s);
 }
 
 TEST_CASE("[String] Right/Left") {
@@ -1285,6 +1747,11 @@ TEST_CASE("[String] Repeat") {
 	String x = "ab";
 	String t = x.repeat(4);
 	CHECK(t == s);
+}
+
+TEST_CASE("[String] Reverse") {
+	String s = "Abcd";
+	CHECK(s.reverse() == "dcbA");
 }
 
 TEST_CASE("[String] SHA1/SHA256/MD5") {
@@ -1361,11 +1828,25 @@ TEST_CASE("[String] validate_node_name") {
 	String name_with_spaces = "Name with spaces";
 	CHECK(name_with_spaces.validate_node_name() == "Name with spaces");
 
-	String name_with_kana = "Name with kana ゴドツ";
-	CHECK(name_with_kana.validate_node_name() == "Name with kana ゴドツ");
+	String name_with_kana = U"Name with kana ゴドツ";
+	CHECK(name_with_kana.validate_node_name() == U"Name with kana ゴドツ");
 
-	String name_with_invalid_chars = "Name with invalid characters :.@removed!";
-	CHECK(name_with_invalid_chars.validate_node_name() == "Name with invalid characters removed!");
+	String name_with_invalid_chars = "Name with invalid characters :.@%removed!";
+	CHECK(name_with_invalid_chars.validate_node_name() == "Name with invalid characters ____removed!");
+}
+
+TEST_CASE("[String] validate_identifier") {
+	String empty_string;
+	CHECK(empty_string.validate_identifier() == "_");
+
+	String numeric_only = "12345";
+	CHECK(numeric_only.validate_identifier() == "_12345");
+
+	String name_with_spaces = "Name with spaces";
+	CHECK(name_with_spaces.validate_identifier() == "Name_with_spaces");
+
+	String name_with_invalid_chars = U"Invalid characters:@*#&世界";
+	CHECK(name_with_invalid_chars.validate_identifier() == "Invalid_characters_______");
 }
 
 TEST_CASE("[String] Variant indexed get") {
@@ -1438,6 +1919,24 @@ TEST_CASE("[String] Variant ptr indexed set") {
 	setter(&s, 1, &v);
 
 	CHECK_EQ(s, String("azcd"));
+}
+
+TEST_CASE("[Stress][String] Empty via ' == String()'") {
+	for (int i = 0; i < 100000; ++i) {
+		String str = "Hello World!";
+		if (str == String()) {
+			continue;
+		}
+	}
+}
+
+TEST_CASE("[Stress][String] Empty via `is_empty()`") {
+	for (int i = 0; i < 100000; ++i) {
+		String str = "Hello World!";
+		if (str.is_empty()) {
+			continue;
+		}
+	}
 }
 } // namespace TestString
 

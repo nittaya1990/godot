@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  keyboard.cpp                                                         */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  keyboard.cpp                                                          */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "keyboard.h"
 
@@ -41,8 +41,8 @@ static const _KeyCodeText _keycodes[] = {
 	/* clang-format off */
 	{Key::ESCAPE                ,"Escape"},
 	{Key::TAB                   ,"Tab"},
-	{Key::BACKTAB               ,"BackTab"},
-	{Key::BACKSPACE             ,"BackSpace"},
+	{Key::BACKTAB               ,"Backtab"},
+	{Key::BACKSPACE             ,"Backspace"},
 	{Key::ENTER                 ,"Enter"},
 	{Key::KP_ENTER              ,"Kp Enter"},
 	{Key::INSERT                ,"Insert"},
@@ -61,12 +61,19 @@ static const _KeyCodeText _keycodes[] = {
 	{Key::PAGEDOWN              ,"PageDown"},
 	{Key::SHIFT                 ,"Shift"},
 	{Key::CTRL                  ,"Ctrl"},
-#ifdef OSX_ENABLED
+#if defined(MACOS_ENABLED)
 	{Key::META                  ,"Command"},
+	{Key::CMD_OR_CTRL           ,"Command"},
+	{Key::ALT                   ,"Option"},
+#elif defined(WINDOWS_ENABLED)
+	{Key::META                  ,"Windows"},
+	{Key::CMD_OR_CTRL           ,"Ctrl"},
+	{Key::ALT                   ,"Alt"},
 #else
 	{Key::META                  ,"Meta"},
-#endif
+	{Key::CMD_OR_CTRL           ,"Ctrl"},
 	{Key::ALT                   ,"Alt"},
+#endif
 	{Key::CAPSLOCK              ,"CapsLock"},
 	{Key::NUMLOCK               ,"NumLock"},
 	{Key::SCROLLLOCK            ,"ScrollLock"},
@@ -86,6 +93,25 @@ static const _KeyCodeText _keycodes[] = {
 	{Key::F14                   ,"F14"},
 	{Key::F15                   ,"F15"},
 	{Key::F16                   ,"F16"},
+	{Key::F17                   ,"F17"},
+	{Key::F18                   ,"F18"},
+	{Key::F19                   ,"F19"},
+	{Key::F20                   ,"F20"},
+	{Key::F21                   ,"F21"},
+	{Key::F22                   ,"F22"},
+	{Key::F23                   ,"F23"},
+	{Key::F24                   ,"F24"},
+	{Key::F25                   ,"F25"},
+	{Key::F26                   ,"F26"},
+	{Key::F27                   ,"F27"},
+	{Key::F28                   ,"F28"},
+	{Key::F29                   ,"F29"},
+	{Key::F30                   ,"F30"},
+	{Key::F31                   ,"F31"},
+	{Key::F32                   ,"F32"},
+	{Key::F33                   ,"F33"},
+	{Key::F34                   ,"F34"},
+	{Key::F35                   ,"F35"},
 	{Key::KP_MULTIPLY           ,"Kp Multiply"},
 	{Key::KP_DIVIDE             ,"Kp Divide"},
 	{Key::KP_SUBTRACT           ,"Kp Subtract"},
@@ -101,14 +127,9 @@ static const _KeyCodeText _keycodes[] = {
 	{Key::KP_7                  ,"Kp 7"},
 	{Key::KP_8                  ,"Kp 8"},
 	{Key::KP_9                  ,"Kp 9"},
-	{Key::SUPER_L               ,"Super L"},
-	{Key::SUPER_R               ,"Super R"},
 	{Key::MENU                  ,"Menu"},
-	{Key::HYPER_L               ,"Hyper L"},
-	{Key::HYPER_R               ,"Hyper R"},
+	{Key::HYPER                 ,"Hyper"},
 	{Key::HELP                  ,"Help"},
-	{Key::DIRECTION_L           ,"Direction L"},
-	{Key::DIRECTION_R           ,"Direction R"},
 	{Key::BACK                  ,"Back"},
 	{Key::FORWARD               ,"Forward"},
 	{Key::STOP                  ,"Stop"},
@@ -116,11 +137,6 @@ static const _KeyCodeText _keycodes[] = {
 	{Key::VOLUMEDOWN            ,"VolumeDown"},
 	{Key::VOLUMEMUTE            ,"VolumeMute"},
 	{Key::VOLUMEUP              ,"VolumeUp"},
-	{Key::BASSBOOST             ,"BassBoost"},
-	{Key::BASSUP                ,"BassUp"},
-	{Key::BASSDOWN              ,"BassDown"},
-	{Key::TREBLEUP              ,"TrebleUp"},
-	{Key::TREBLEDOWN            ,"TrebleDown"},
 	{Key::MEDIAPLAY             ,"MediaPlay"},
 	{Key::MEDIASTOP             ,"MediaStop"},
 	{Key::MEDIAPREVIOUS         ,"MediaPrevious"},
@@ -130,6 +146,7 @@ static const _KeyCodeText _keycodes[] = {
 	{Key::FAVORITES             ,"Favorites"},
 	{Key::SEARCH                ,"Search"},
 	{Key::STANDBY               ,"StandBy"},
+	{Key::OPENURL               ,"OpenURL"},
 	{Key::LAUNCHMAIL            ,"LaunchMail"},
 	{Key::LAUNCHMEDIA           ,"LaunchMedia"},
 	{Key::LAUNCH0               ,"Launch0"},
@@ -148,6 +165,10 @@ static const _KeyCodeText _keycodes[] = {
 	{Key::LAUNCHD               ,"LaunchD"},
 	{Key::LAUNCHE               ,"LaunchE"},
 	{Key::LAUNCHF               ,"LaunchF"},
+	{Key::GLOBE                 ,"Globe"},
+	{Key::KEYBOARD              ,"On-screen keyboard"},
+	{Key::JIS_EISU              ,"JIS Eisu"},
+	{Key::JIS_KANA              ,"JIS Kana"},
 	{Key::UNKNOWN               ,"Unknown"},
 	{Key::SPACE                 ,"Space"},
 	{Key::EXCLAM                ,"Exclam"},
@@ -218,72 +239,8 @@ static const _KeyCodeText _keycodes[] = {
 	{Key::BAR                   ,"Bar"},
 	{Key::BRACERIGHT            ,"BraceRight"},
 	{Key::ASCIITILDE            ,"AsciiTilde"},
-	{Key::NOBREAKSPACE          ,"NoBreakSpace"},
-	{Key::EXCLAMDOWN            ,"ExclamDown"},
-	{Key::CENT                  ,"Cent"},
-	{Key::STERLING              ,"Sterling"},
-	{Key::CURRENCY              ,"Currency"},
 	{Key::YEN                   ,"Yen"},
-	{Key::BROKENBAR             ,"BrokenBar"},
 	{Key::SECTION               ,"Section"},
-	{Key::DIAERESIS             ,"Diaeresis"},
-	{Key::COPYRIGHT             ,"Copyright"},
-	{Key::ORDFEMININE           ,"Ordfeminine"},
-	{Key::GUILLEMOTLEFT         ,"GuillemotLeft"},
-	{Key::NOTSIGN               ,"NotSign"},
-	{Key::HYPHEN                ,"Hyphen"},
-	{Key::KEY_REGISTERED        ,"Registered"},
-	{Key::MACRON                ,"Macron"},
-	{Key::DEGREE                ,"Degree"},
-	{Key::PLUSMINUS             ,"PlusMinus"},
-	{Key::TWOSUPERIOR           ,"TwoSuperior"},
-	{Key::THREESUPERIOR         ,"ThreeSuperior"},
-	{Key::ACUTE                 ,"Acute"},
-	{Key::MU                    ,"Mu"},
-	{Key::PARAGRAPH             ,"Paragraph"},
-	{Key::PERIODCENTERED        ,"PeriodCentered"},
-	{Key::CEDILLA               ,"Cedilla"},
-	{Key::ONESUPERIOR           ,"OneSuperior"},
-	{Key::MASCULINE             ,"Masculine"},
-	{Key::GUILLEMOTRIGHT        ,"GuillemotRight"},
-	{Key::ONEQUARTER            ,"OneQuarter"},
-	{Key::ONEHALF               ,"OneHalf"},
-	{Key::THREEQUARTERS         ,"ThreeQuarters"},
-	{Key::QUESTIONDOWN          ,"QuestionDown"},
-	{Key::AGRAVE                ,"Agrave"},
-	{Key::AACUTE                ,"Aacute"},
-	{Key::ACIRCUMFLEX           ,"AcircumFlex"},
-	{Key::ATILDE                ,"Atilde"},
-	{Key::ADIAERESIS            ,"Adiaeresis"},
-	{Key::ARING                 ,"Aring"},
-	{Key::AE                    ,"Ae"},
-	{Key::CCEDILLA              ,"Ccedilla"},
-	{Key::EGRAVE                ,"Egrave"},
-	{Key::EACUTE                ,"Eacute"},
-	{Key::ECIRCUMFLEX           ,"Ecircumflex"},
-	{Key::EDIAERESIS            ,"Ediaeresis"},
-	{Key::IGRAVE                ,"Igrave"},
-	{Key::IACUTE                ,"Iacute"},
-	{Key::ICIRCUMFLEX           ,"Icircumflex"},
-	{Key::IDIAERESIS            ,"Idiaeresis"},
-	{Key::ETH                   ,"Eth"},
-	{Key::NTILDE                ,"Ntilde"},
-	{Key::OGRAVE                ,"Ograve"},
-	{Key::OACUTE                ,"Oacute"},
-	{Key::OCIRCUMFLEX           ,"Ocircumflex"},
-	{Key::OTILDE                ,"Otilde"},
-	{Key::ODIAERESIS            ,"Odiaeresis"},
-	{Key::MULTIPLY              ,"Multiply"},
-	{Key::OOBLIQUE              ,"Ooblique"},
-	{Key::UGRAVE                ,"Ugrave"},
-	{Key::UACUTE                ,"Uacute"},
-	{Key::UCIRCUMFLEX           ,"Ucircumflex"},
-	{Key::UDIAERESIS            ,"Udiaeresis"},
-	{Key::YACUTE                ,"Yacute"},
-	{Key::THORN                 ,"Thorn"},
-	{Key::SSHARP                ,"Ssharp"},
-	{Key::DIVISION              ,"Division"},
-	{Key::YDIAERESIS            ,"Ydiaeresis"},
 	{Key::NONE                  ,nullptr}
 	/* clang-format on */
 };
@@ -333,14 +290,28 @@ bool keycode_has_unicode(Key p_keycode) {
 		case Key::F14:
 		case Key::F15:
 		case Key::F16:
-		case Key::SUPER_L:
-		case Key::SUPER_R:
+		case Key::F17:
+		case Key::F18:
+		case Key::F19:
+		case Key::F20:
+		case Key::F21:
+		case Key::F22:
+		case Key::F23:
+		case Key::F24:
+		case Key::F25:
+		case Key::F26:
+		case Key::F27:
+		case Key::F28:
+		case Key::F29:
+		case Key::F30:
+		case Key::F31:
+		case Key::F32:
+		case Key::F33:
+		case Key::F34:
+		case Key::F35:
 		case Key::MENU:
-		case Key::HYPER_L:
-		case Key::HYPER_R:
+		case Key::HYPER:
 		case Key::HELP:
-		case Key::DIRECTION_L:
-		case Key::DIRECTION_R:
 		case Key::BACK:
 		case Key::FORWARD:
 		case Key::STOP:
@@ -348,11 +319,6 @@ bool keycode_has_unicode(Key p_keycode) {
 		case Key::VOLUMEDOWN:
 		case Key::VOLUMEMUTE:
 		case Key::VOLUMEUP:
-		case Key::BASSBOOST:
-		case Key::BASSUP:
-		case Key::BASSDOWN:
-		case Key::TREBLEUP:
-		case Key::TREBLEDOWN:
 		case Key::MEDIAPLAY:
 		case Key::MEDIASTOP:
 		case Key::MEDIAPREVIOUS:
@@ -381,6 +347,10 @@ bool keycode_has_unicode(Key p_keycode) {
 		case Key::LAUNCHD:
 		case Key::LAUNCHE:
 		case Key::LAUNCHF:
+		case Key::GLOBE:
+		case Key::KEYBOARD:
+		case Key::JIS_EISU:
+		case Key::JIS_KANA:
 			return false;
 		default: {
 		}
@@ -397,6 +367,14 @@ String keycode_get_string(Key p_code) {
 	}
 	if ((p_code & KeyModifierMask::ALT) != Key::NONE) {
 		codestr += find_keycode_name(Key::ALT);
+		codestr += "+";
+	}
+	if ((p_code & KeyModifierMask::CMD_OR_CTRL) != Key::NONE) {
+		if (OS::get_singleton()->has_feature("macos") || OS::get_singleton()->has_feature("web_macos") || OS::get_singleton()->has_feature("web_ios")) {
+			codestr += find_keycode_name(Key::META);
+		} else {
+			codestr += find_keycode_name(Key::CTRL);
+		}
 		codestr += "+";
 	}
 	if ((p_code & KeyModifierMask::CTRL) != Key::NONE) {
@@ -425,17 +403,38 @@ String keycode_get_string(Key p_code) {
 	return codestr;
 }
 
-Key find_keycode(const String &p_code) {
+Key find_keycode(const String &p_codestr) {
+	Key keycode = Key::NONE;
+	Vector<String> code_parts = p_codestr.split("+");
+	if (code_parts.size() < 1) {
+		return keycode;
+	}
+
+	const String &last_part = code_parts[code_parts.size() - 1];
 	const _KeyCodeText *kct = &_keycodes[0];
 
 	while (kct->text) {
-		if (p_code.nocasecmp_to(kct->text) == 0) {
-			return kct->code;
+		if (last_part.nocasecmp_to(kct->text) == 0) {
+			keycode = kct->code;
+			break;
 		}
 		kct++;
 	}
 
-	return Key::NONE;
+	for (int part = 0; part < code_parts.size() - 1; part++) {
+		const String &code_part = code_parts[part];
+		if (code_part.nocasecmp_to(find_keycode_name(Key::SHIFT)) == 0) {
+			keycode |= KeyModifierMask::SHIFT;
+		} else if (code_part.nocasecmp_to(find_keycode_name(Key::CTRL)) == 0) {
+			keycode |= KeyModifierMask::CTRL;
+		} else if (code_part.nocasecmp_to(find_keycode_name(Key::META)) == 0) {
+			keycode |= KeyModifierMask::META;
+		} else if (code_part.nocasecmp_to(find_keycode_name(Key::ALT)) == 0) {
+			keycode |= KeyModifierMask::ALT;
+		}
+	}
+
+	return keycode;
 }
 
 const char *find_keycode_name(Key p_keycode) {
@@ -468,4 +467,25 @@ int keycode_get_value_by_index(int p_index) {
 
 const char *keycode_get_name_by_index(int p_index) {
 	return _keycodes[p_index].text;
+}
+
+char32_t fix_unicode(char32_t p_char) {
+	if (p_char >= 0x20 && p_char != 0x7F) {
+		return p_char;
+	}
+	return 0;
+}
+
+Key fix_keycode(char32_t p_char, Key p_key) {
+	if (p_char >= 0x20 && p_char <= 0x7E) {
+		return (Key)String::char_uppercase(p_char);
+	}
+	return p_key;
+}
+
+Key fix_key_label(char32_t p_char, Key p_key) {
+	if (p_char >= 0x20 && p_char != 0x7F) {
+		return (Key)String::char_uppercase(p_char);
+	}
+	return p_key;
 }

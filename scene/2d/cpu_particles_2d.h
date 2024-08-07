@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  cpu_particles_2d.h                                                   */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  cpu_particles_2d.h                                                    */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef CPU_PARTICLES_2D_H
 #define CPU_PARTICLES_2D_H
@@ -69,6 +69,7 @@ public:
 	enum EmissionShape {
 		EMISSION_SHAPE_POINT,
 		EMISSION_SHAPE_SPHERE,
+		EMISSION_SHAPE_SPHERE_SURFACE,
 		EMISSION_SHAPE_RECTANGLE,
 		EMISSION_SHAPE_POINTS,
 		EMISSION_SHAPE_DIRECTED_POINTS,
@@ -77,6 +78,7 @@ public:
 
 private:
 	bool emitting = false;
+	bool active = false;
 
 	struct Particle {
 		Transform2D transform;
@@ -89,6 +91,7 @@ private:
 		real_t scale_rand = 0.0;
 		real_t hue_rot_rand = 0.0;
 		real_t anim_offset_rand = 0.0;
+		Color start_color_rand;
 		double time = 0.0;
 		double lifetime = 0.0;
 		Color base_color;
@@ -97,10 +100,9 @@ private:
 	};
 
 	double time = 0.0;
-	double inactive_time = 0.0;
 	double frame_remainder = 0.0;
 	int cycle = 0;
-	bool redraw = false;
+	bool do_redraw = false;
 
 	RID mesh;
 	RID multimesh;
@@ -135,7 +137,7 @@ private:
 	real_t randomness_ratio = 0.0;
 	double lifetime_randomness = 0.0;
 	double speed_scale = 1.0;
-	bool local_coords;
+	bool local_coords = false;
 	int fixed_fps = 0;
 	bool fractional_delta = true;
 
@@ -150,12 +152,13 @@ private:
 	Vector2 direction = Vector2(1, 0);
 	real_t spread = 45.0;
 
-	real_t parameters_min[PARAM_MAX];
-	real_t parameters_max[PARAM_MAX];
+	real_t parameters_min[PARAM_MAX] = {};
+	real_t parameters_max[PARAM_MAX] = {};
 
 	Ref<Curve> curve_parameters[PARAM_MAX];
 	Color color;
 	Ref<Gradient> color_ramp;
+	Ref<Gradient> color_initial_ramp;
 
 	bool particle_flags[PARTICLE_FLAG_MAX];
 
@@ -183,14 +186,14 @@ private:
 
 	void _update_mesh_texture();
 
-	void _set_redraw(bool p_redraw);
+	void _set_do_redraw(bool p_do_redraw);
 
 	void _texture_changed();
 
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
-	virtual void _validate_property(PropertyInfo &property) const override;
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	void set_emitting(bool p_emitting);
@@ -250,6 +253,9 @@ public:
 	void set_color_ramp(const Ref<Gradient> &p_ramp);
 	Ref<Gradient> get_color_ramp() const;
 
+	void set_color_initial_ramp(const Ref<Gradient> &p_ramp);
+	Ref<Gradient> get_color_initial_ramp() const;
+
 	void set_particle_flag(ParticleFlags p_particle_flag, bool p_enable);
 	bool get_particle_flag(ParticleFlags p_particle_flag) const;
 
@@ -276,7 +282,7 @@ public:
 	void set_gravity(const Vector2 &p_gravity);
 	Vector2 get_gravity() const;
 
-	TypedArray<String> get_configuration_warnings() const override;
+	PackedStringArray get_configuration_warnings() const override;
 
 	void restart();
 

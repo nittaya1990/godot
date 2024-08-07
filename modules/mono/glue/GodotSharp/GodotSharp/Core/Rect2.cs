@@ -1,10 +1,8 @@
-#if REAL_T_IS_DOUBLE
-using real_t = System.Double;
-#else
-using real_t = System.Single;
-#endif
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+
+#nullable enable
 
 namespace Godot
 {
@@ -25,7 +23,7 @@ namespace Godot
         /// <value>Directly uses a private field.</value>
         public Vector2 Position
         {
-            get { return _position; }
+            readonly get { return _position; }
             set { _position = value; }
         }
 
@@ -36,7 +34,7 @@ namespace Godot
         /// <value>Directly uses a private field.</value>
         public Vector2 Size
         {
-            get { return _size; }
+            readonly get { return _size; }
             set { _size = value; }
         }
 
@@ -50,17 +48,17 @@ namespace Godot
         /// </value>
         public Vector2 End
         {
-            get { return _position + _size; }
+            readonly get { return _position + _size; }
             set { _size = value - _position; }
         }
 
         /// <summary>
         /// The area of this <see cref="Rect2"/>.
+        /// See also <see cref="HasArea"/>.
         /// </summary>
-        /// <value>Equivalent to <see cref="GetArea()"/>.</value>
-        public real_t Area
+        public readonly real_t Area
         {
-            get { return GetArea(); }
+            get { return _size.X * _size.Y; }
         }
 
         /// <summary>
@@ -68,10 +66,10 @@ namespace Godot
         /// the top-left corner is the origin and width and height are positive.
         /// </summary>
         /// <returns>The modified <see cref="Rect2"/>.</returns>
-        public Rect2 Abs()
+        public readonly Rect2 Abs()
         {
             Vector2 end = End;
-            Vector2 topLeft = new Vector2(Mathf.Min(_position.x, end.x), Mathf.Min(_position.y, end.y));
+            Vector2 topLeft = end.Min(_position);
             return new Rect2(topLeft, _size.Abs());
         }
 
@@ -84,7 +82,7 @@ namespace Godot
         /// The intersection of this <see cref="Rect2"/> and <paramref name="b"/>,
         /// or an empty <see cref="Rect2"/> if they do not intersect.
         /// </returns>
-        public Rect2 Intersection(Rect2 b)
+        public readonly Rect2 Intersection(Rect2 b)
         {
             Rect2 newRect = b;
 
@@ -93,16 +91,24 @@ namespace Godot
                 return new Rect2();
             }
 
-            newRect._position.x = Mathf.Max(b._position.x, _position.x);
-            newRect._position.y = Mathf.Max(b._position.y, _position.y);
+            newRect._position = b._position.Max(_position);
 
             Vector2 bEnd = b._position + b._size;
             Vector2 end = _position + _size;
 
-            newRect._size.x = Mathf.Min(bEnd.x, end.x) - newRect._position.x;
-            newRect._size.y = Mathf.Min(bEnd.y, end.y) - newRect._position.y;
+            newRect._size = bEnd.Min(end) - newRect._position;
 
             return newRect;
+        }
+
+        /// <summary>
+        /// Returns <see langword="true"/> if this <see cref="Rect2"/> is finite, by calling
+        /// <see cref="Mathf.IsFinite(real_t)"/> on each component.
+        /// </summary>
+        /// <returns>Whether this vector is finite or not.</returns>
+        public bool IsFinite()
+        {
+            return _position.IsFinite() && _size.IsFinite();
         }
 
         /// <summary>
@@ -112,11 +118,11 @@ namespace Godot
         /// <returns>
         /// A <see langword="bool"/> for whether or not this <see cref="Rect2"/> encloses <paramref name="b"/>.
         /// </returns>
-        public bool Encloses(Rect2 b)
+        public readonly bool Encloses(Rect2 b)
         {
-            return b._position.x >= _position.x && b._position.y >= _position.y &&
-               b._position.x + b._size.x < _position.x + _size.x &&
-               b._position.y + b._size.y < _position.y + _size.y;
+            return b._position.X >= _position.X && b._position.Y >= _position.Y &&
+               b._position.X + b._size.X <= _position.X + _size.X &&
+               b._position.Y + b._size.Y <= _position.Y + _size.Y;
         }
 
         /// <summary>
@@ -124,29 +130,29 @@ namespace Godot
         /// </summary>
         /// <param name="to">The point to include.</param>
         /// <returns>The expanded <see cref="Rect2"/>.</returns>
-        public Rect2 Expand(Vector2 to)
+        public readonly Rect2 Expand(Vector2 to)
         {
             Rect2 expanded = this;
 
             Vector2 begin = expanded._position;
             Vector2 end = expanded._position + expanded._size;
 
-            if (to.x < begin.x)
+            if (to.X < begin.X)
             {
-                begin.x = to.x;
+                begin.X = to.X;
             }
-            if (to.y < begin.y)
+            if (to.Y < begin.Y)
             {
-                begin.y = to.y;
+                begin.Y = to.Y;
             }
 
-            if (to.x > end.x)
+            if (to.X > end.X)
             {
-                end.x = to.x;
+                end.X = to.X;
             }
-            if (to.y > end.y)
+            if (to.Y > end.Y)
             {
-                end.y = to.y;
+                end.Y = to.Y;
             }
 
             expanded._position = begin;
@@ -156,20 +162,11 @@ namespace Godot
         }
 
         /// <summary>
-        /// Returns the area of the <see cref="Rect2"/>.
-        /// </summary>
-        /// <returns>The area.</returns>
-        public real_t GetArea()
-        {
-            return _size.x * _size.y;
-        }
-
-        /// <summary>
         /// Returns the center of the <see cref="Rect2"/>, which is equal
         /// to <see cref="Position"/> + (<see cref="Size"/> / 2).
         /// </summary>
         /// <returns>The center.</returns>
-        public Vector2 GetCenter()
+        public readonly Vector2 GetCenter()
         {
             return _position + (_size * 0.5f);
         }
@@ -182,14 +179,14 @@ namespace Godot
         /// <seealso cref="GrowSide(Side, real_t)"/>
         /// <param name="by">The amount to grow by.</param>
         /// <returns>The grown <see cref="Rect2"/>.</returns>
-        public Rect2 Grow(real_t by)
+        public readonly Rect2 Grow(real_t by)
         {
             Rect2 g = this;
 
-            g._position.x -= by;
-            g._position.y -= by;
-            g._size.x += by * 2;
-            g._size.y += by * 2;
+            g._position.X -= by;
+            g._position.Y -= by;
+            g._size.X += by * 2;
+            g._size.Y += by * 2;
 
             return g;
         }
@@ -205,14 +202,14 @@ namespace Godot
         /// <param name="right">The amount to grow by on the right side.</param>
         /// <param name="bottom">The amount to grow by on the bottom side.</param>
         /// <returns>The grown <see cref="Rect2"/>.</returns>
-        public Rect2 GrowIndividual(real_t left, real_t top, real_t right, real_t bottom)
+        public readonly Rect2 GrowIndividual(real_t left, real_t top, real_t right, real_t bottom)
         {
             Rect2 g = this;
 
-            g._position.x -= left;
-            g._position.y -= top;
-            g._size.x += left + right;
-            g._size.y += top + bottom;
+            g._position.X -= left;
+            g._position.Y -= top;
+            g._size.X += left + right;
+            g._size.Y += top + bottom;
 
             return g;
         }
@@ -226,7 +223,7 @@ namespace Godot
         /// <param name="side">The side to grow.</param>
         /// <param name="by">The amount to grow by.</param>
         /// <returns>The grown <see cref="Rect2"/>.</returns>
-        public Rect2 GrowSide(Side side, real_t by)
+        public readonly Rect2 GrowSide(Side side, real_t by)
         {
             Rect2 g = this;
 
@@ -239,15 +236,17 @@ namespace Godot
         }
 
         /// <summary>
-        /// Returns <see langword="true"/> if the <see cref="Rect2"/> is flat or empty,
-        /// or <see langword="false"/> otherwise.
+        /// Returns <see langword="true"/> if the <see cref="Rect2"/> has
+        /// area, and <see langword="false"/> if the <see cref="Rect2"/>
+        /// is linear, empty, or has a negative <see cref="Size"/>.
+        /// See also <see cref="Area"/>.
         /// </summary>
         /// <returns>
         /// A <see langword="bool"/> for whether or not the <see cref="Rect2"/> has area.
         /// </returns>
-        public bool HasNoArea()
+        public readonly bool HasArea()
         {
-            return _size.x <= 0 || _size.y <= 0;
+            return _size.X > 0.0f && _size.Y > 0.0f;
         }
 
         /// <summary>
@@ -258,16 +257,16 @@ namespace Godot
         /// <returns>
         /// A <see langword="bool"/> for whether or not the <see cref="Rect2"/> contains <paramref name="point"/>.
         /// </returns>
-        public bool HasPoint(Vector2 point)
+        public readonly bool HasPoint(Vector2 point)
         {
-            if (point.x < _position.x)
+            if (point.X < _position.X)
                 return false;
-            if (point.y < _position.y)
+            if (point.Y < _position.Y)
                 return false;
 
-            if (point.x >= _position.x + _size.x)
+            if (point.X >= _position.X + _size.X)
                 return false;
-            if (point.y >= _position.y + _size.y)
+            if (point.Y >= _position.Y + _size.Y)
                 return false;
 
             return true;
@@ -284,42 +283,42 @@ namespace Godot
         /// <param name="b">The other <see cref="Rect2"/> to check for intersections with.</param>
         /// <param name="includeBorders">Whether or not to consider borders.</param>
         /// <returns>A <see langword="bool"/> for whether or not they are intersecting.</returns>
-        public bool Intersects(Rect2 b, bool includeBorders = false)
+        public readonly bool Intersects(Rect2 b, bool includeBorders = false)
         {
             if (includeBorders)
             {
-                if (_position.x > b._position.x + b._size.x)
+                if (_position.X > b._position.X + b._size.X)
                 {
                     return false;
                 }
-                if (_position.x + _size.x < b._position.x)
+                if (_position.X + _size.X < b._position.X)
                 {
                     return false;
                 }
-                if (_position.y > b._position.y + b._size.y)
+                if (_position.Y > b._position.Y + b._size.Y)
                 {
                     return false;
                 }
-                if (_position.y + _size.y < b._position.y)
+                if (_position.Y + _size.Y < b._position.Y)
                 {
                     return false;
                 }
             }
             else
             {
-                if (_position.x >= b._position.x + b._size.x)
+                if (_position.X >= b._position.X + b._size.X)
                 {
                     return false;
                 }
-                if (_position.x + _size.x <= b._position.x)
+                if (_position.X + _size.X <= b._position.X)
                 {
                     return false;
                 }
-                if (_position.y >= b._position.y + b._size.y)
+                if (_position.Y >= b._position.Y + b._size.Y)
                 {
                     return false;
                 }
-                if (_position.y + _size.y <= b._position.y)
+                if (_position.Y + _size.Y <= b._position.Y)
                 {
                     return false;
                 }
@@ -333,15 +332,13 @@ namespace Godot
         /// </summary>
         /// <param name="b">The other <see cref="Rect2"/>.</param>
         /// <returns>The merged <see cref="Rect2"/>.</returns>
-        public Rect2 Merge(Rect2 b)
+        public readonly Rect2 Merge(Rect2 b)
         {
             Rect2 newRect;
 
-            newRect._position.x = Mathf.Min(b._position.x, _position.x);
-            newRect._position.y = Mathf.Min(b._position.y, _position.y);
+            newRect._position = b._position.Min(_position);
 
-            newRect._size.x = Mathf.Max(b._position.x + b._size.x, _position.x + _size.x);
-            newRect._size.y = Mathf.Max(b._position.y + b._size.y, _position.y + _size.y);
+            newRect._size = (b._position + b._size).Max(_position + _size);
 
             newRect._size -= newRect._position; // Make relative again
 
@@ -396,11 +393,29 @@ namespace Godot
             _size = new Vector2(width, height);
         }
 
+        /// <summary>
+        /// Returns <see langword="true"/> if the
+        /// <see cref="Rect2"/>s are exactly equal.
+        /// Note: Due to floating-point precision errors, consider using
+        /// <see cref="IsEqualApprox"/> instead, which is more reliable.
+        /// </summary>
+        /// <param name="left">The left rect.</param>
+        /// <param name="right">The right rect.</param>
+        /// <returns>Whether or not the rects are exactly equal.</returns>
         public static bool operator ==(Rect2 left, Rect2 right)
         {
             return left.Equals(right);
         }
 
+        /// <summary>
+        /// Returns <see langword="true"/> if the
+        /// <see cref="Rect2"/>s are not equal.
+        /// Note: Due to floating-point precision errors, consider using
+        /// <see cref="IsEqualApprox"/> instead, which is more reliable.
+        /// </summary>
+        /// <param name="left">The left rect.</param>
+        /// <param name="right">The right rect.</param>
+        /// <returns>Whether or not the rects are not equal.</returns>
         public static bool operator !=(Rect2 left, Rect2 right)
         {
             return !left.Equals(right);
@@ -410,23 +425,18 @@ namespace Godot
         /// Returns <see langword="true"/> if this rect and <paramref name="obj"/> are equal.
         /// </summary>
         /// <param name="obj">The other object to compare.</param>
-        /// <returns>Whether or not the rect and the other object are equal.</returns>
-        public override bool Equals(object obj)
+        /// <returns>Whether or not the rect and the other object are exactly equal.</returns>
+        public override readonly bool Equals([NotNullWhen(true)] object? obj)
         {
-            if (obj is Rect2)
-            {
-                return Equals((Rect2)obj);
-            }
-
-            return false;
+            return obj is Rect2 other && Equals(other);
         }
 
         /// <summary>
         /// Returns <see langword="true"/> if this rect and <paramref name="other"/> are equal.
         /// </summary>
         /// <param name="other">The other rect to compare.</param>
-        /// <returns>Whether or not the rects are equal.</returns>
-        public bool Equals(Rect2 other)
+        /// <returns>Whether or not the rects are exactly equal.</returns>
+        public readonly bool Equals(Rect2 other)
         {
             return _position.Equals(other._position) && _size.Equals(other._size);
         }
@@ -437,7 +447,7 @@ namespace Godot
         /// </summary>
         /// <param name="other">The other rect to compare.</param>
         /// <returns>Whether or not the rects are approximately equal.</returns>
-        public bool IsEqualApprox(Rect2 other)
+        public readonly bool IsEqualApprox(Rect2 other)
         {
             return _position.IsEqualApprox(other._position) && _size.IsEqualApprox(other.Size);
         }
@@ -446,25 +456,22 @@ namespace Godot
         /// Serves as the hash function for <see cref="Rect2"/>.
         /// </summary>
         /// <returns>A hash code for this rect.</returns>
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
-            return _position.GetHashCode() ^ _size.GetHashCode();
+            return HashCode.Combine(_position, _size);
         }
 
         /// <summary>
         /// Converts this <see cref="Rect2"/> to a string.
         /// </summary>
         /// <returns>A string representation of this rect.</returns>
-        public override string ToString()
-        {
-            return $"{_position}, {_size}";
-        }
+        public override readonly string ToString() => ToString(null);
 
         /// <summary>
         /// Converts this <see cref="Rect2"/> to a string with the given <paramref name="format"/>.
         /// </summary>
         /// <returns>A string representation of this rect.</returns>
-        public string ToString(string format)
+        public readonly string ToString(string? format)
         {
             return $"{_position.ToString(format)}, {_size.ToString(format)}";
         }

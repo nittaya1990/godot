@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_collision_object_3d.h                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_collision_object_3d.h                                           */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef GODOT_COLLISION_OBJECT_3D_H
 #define GODOT_COLLISION_OBJECT_3D_H
@@ -59,6 +59,7 @@ private:
 	ObjectID instance_id;
 	uint32_t collision_layer = 1;
 	uint32_t collision_mask = 1;
+	real_t collision_priority = 1.0;
 
 	struct Shape {
 		Transform3D xform;
@@ -112,7 +113,7 @@ public:
 	_FORCE_INLINE_ void set_instance_id(const ObjectID &p_instance_id) { instance_id = p_instance_id; }
 	_FORCE_INLINE_ ObjectID get_instance_id() const { return instance_id; }
 
-	void _shape_changed();
+	void _shape_changed() override;
 
 	_FORCE_INLINE_ Type get_type() const { return type; }
 	void add_shape(GodotShape3D *p_shape, const Transform3D &p_transform = Transform3D(), bool p_disabled = false);
@@ -165,15 +166,22 @@ public:
 	}
 	_FORCE_INLINE_ uint32_t get_collision_mask() const { return collision_mask; }
 
+	_FORCE_INLINE_ void set_collision_priority(real_t p_priority) {
+		ERR_FAIL_COND_MSG(p_priority <= 0, "Priority must be greater than 0.");
+		collision_priority = p_priority;
+		_shape_changed();
+	}
+	_FORCE_INLINE_ real_t get_collision_priority() const { return collision_priority; }
+
 	_FORCE_INLINE_ bool collides_with(GodotCollisionObject3D *p_other) const {
 		return p_other->collision_layer & collision_mask;
 	}
 
-	_FORCE_INLINE_ bool interacts_with(GodotCollisionObject3D *p_other) const {
+	_FORCE_INLINE_ bool interacts_with(const GodotCollisionObject3D *p_other) const {
 		return collision_layer & p_other->collision_mask || p_other->collision_layer & collision_mask;
 	}
 
-	void remove_shape(GodotShape3D *p_shape);
+	void remove_shape(GodotShape3D *p_shape) override;
 	void remove_shape(int p_index);
 
 	virtual void set_space(GodotSpace3D *p_space) = 0;

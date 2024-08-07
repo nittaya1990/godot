@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_body_2d.h                                                      */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_body_2d.h                                                       */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef GODOT_BODY_2D_H
 #define GODOT_BODY_2D_H
@@ -42,13 +42,16 @@ class GodotConstraint2D;
 class GodotPhysicsDirectBodyState2D;
 
 class GodotBody2D : public GodotCollisionObject2D {
-	PhysicsServer2D::BodyMode mode = PhysicsServer2D::BODY_MODE_DYNAMIC;
+	PhysicsServer2D::BodyMode mode = PhysicsServer2D::BODY_MODE_RIGID;
 
 	Vector2 biased_linear_velocity;
 	real_t biased_angular_velocity = 0.0;
 
 	Vector2 linear_velocity;
 	real_t angular_velocity = 0.0;
+
+	Vector2 prev_linear_velocity;
+	real_t prev_angular_velocity = 0.0;
 
 	Vector2 constant_linear_velocity;
 	real_t constant_angular_velocity = 0.0;
@@ -86,6 +89,9 @@ class GodotBody2D : public GodotCollisionObject2D {
 	Vector2 applied_force;
 	real_t applied_torque = 0.0;
 
+	Vector2 constant_force;
+	real_t constant_torque = 0.0;
+
 	SelfList<GodotBody2D> active_list;
 	SelfList<GodotBody2D> mass_properties_update_list;
 	SelfList<GodotBody2D> direct_state_query_list;
@@ -97,7 +103,7 @@ class GodotBody2D : public GodotCollisionObject2D {
 	bool can_sleep = true;
 	bool first_time_kinematic = false;
 	void _mass_properties_changed();
-	virtual void _shapes_changed();
+	virtual void _shapes_changed() override;
 	Transform2D new_transform;
 
 	List<Pair<GodotConstraint2D *, int>> constraint_list;
@@ -119,6 +125,7 @@ class GodotBody2D : public GodotCollisionObject2D {
 	struct Contact {
 		Vector2 local_pos;
 		Vector2 local_normal;
+		Vector2 local_velocity_at_pos;
 		real_t depth = 0.0;
 		int local_shape = 0;
 		Vector2 collider_pos;
@@ -126,13 +133,13 @@ class GodotBody2D : public GodotCollisionObject2D {
 		ObjectID collider_instance_id;
 		RID collider;
 		Vector2 collider_velocity_at_pos;
+		Vector2 impulse;
 	};
 
 	Vector<Contact> contacts; //no contacts by default
 	int contact_count = 0;
 
-	void *body_state_callback_instance = nullptr;
-	PhysicsServer2D::BodyStateCallback body_state_callback = nullptr;
+	Callable body_state_callback;
 
 	struct ForceIntegrationCallbackData {
 		Callable callable;
@@ -150,7 +157,7 @@ class GodotBody2D : public GodotCollisionObject2D {
 	friend class GodotPhysicsDirectBodyState2D; // i give up, too many functions to expose
 
 public:
-	void set_state_sync_callback(void *p_instance, PhysicsServer2D::BodyStateCallback p_callback);
+	void set_state_sync_callback(const Callable &p_callable);
 	void set_force_integration_callback(const Callable &p_callable, const Variant &p_udata = Variant());
 
 	GodotPhysicsDirectBodyState2D *get_direct_state();
@@ -169,7 +176,7 @@ public:
 		if (index > -1) {
 			areas.write[index].refCount -= 1;
 			if (areas[index].refCount < 1) {
-				areas.remove(index);
+				areas.remove_at(index);
 			}
 		}
 	}
@@ -185,7 +192,7 @@ public:
 	_FORCE_INLINE_ int get_max_contacts_reported() const { return contacts.size(); }
 
 	_FORCE_INLINE_ bool can_report_contacts() const { return !contacts.is_empty(); }
-	_FORCE_INLINE_ void add_contact(const Vector2 &p_local_pos, const Vector2 &p_local_normal, real_t p_depth, int p_local_shape, const Vector2 &p_collider_pos, int p_collider_shape, ObjectID p_collider_instance_id, const RID &p_collider, const Vector2 &p_collider_velocity_at_pos);
+	_FORCE_INLINE_ void add_contact(const Vector2 &p_local_pos, const Vector2 &p_local_normal, real_t p_depth, int p_local_shape, const Vector2 &p_local_velocity_at_pos, const Vector2 &p_collider_pos, int p_collider_shape, ObjectID p_collider_instance_id, const RID &p_collider, const Vector2 &p_collider_velocity_at_pos, const Vector2 &p_impulse);
 
 	_FORCE_INLINE_ void add_exception(const RID &p_exception) { exceptions.insert(p_exception); }
 	_FORCE_INLINE_ void remove_exception(const RID &p_exception) { exceptions.erase(p_exception); }
@@ -209,6 +216,9 @@ public:
 	_FORCE_INLINE_ void set_angular_velocity(real_t p_velocity) { angular_velocity = p_velocity; }
 	_FORCE_INLINE_ real_t get_angular_velocity() const { return angular_velocity; }
 
+	_FORCE_INLINE_ Vector2 get_prev_linear_velocity() const { return prev_linear_velocity; }
+	_FORCE_INLINE_ real_t get_prev_angular_velocity() const { return prev_angular_velocity; }
+
 	_FORCE_INLINE_ void set_biased_linear_velocity(const Vector2 &p_velocity) { biased_linear_velocity = p_velocity; }
 	_FORCE_INLINE_ Vector2 get_biased_linear_velocity() const { return biased_linear_velocity; }
 
@@ -228,10 +238,48 @@ public:
 		angular_velocity += _inv_inertia * p_torque;
 	}
 
-	_FORCE_INLINE_ void apply_bias_impulse(const Vector2 &p_impulse, const Vector2 &p_position = Vector2()) {
+	_FORCE_INLINE_ void apply_bias_impulse(const Vector2 &p_impulse, const Vector2 &p_position = Vector2(), real_t p_max_delta_av = -1.0) {
 		biased_linear_velocity += p_impulse * _inv_mass;
-		biased_angular_velocity += _inv_inertia * (p_position - center_of_mass).cross(p_impulse);
+		if (p_max_delta_av != 0.0) {
+			real_t delta_av = _inv_inertia * (p_position - center_of_mass).cross(p_impulse);
+			if (p_max_delta_av > 0 && delta_av > p_max_delta_av) {
+				delta_av = p_max_delta_av;
+			}
+			biased_angular_velocity += delta_av;
+		}
 	}
+
+	_FORCE_INLINE_ void apply_central_force(const Vector2 &p_force) {
+		applied_force += p_force;
+	}
+
+	_FORCE_INLINE_ void apply_force(const Vector2 &p_force, const Vector2 &p_position = Vector2()) {
+		applied_force += p_force;
+		applied_torque += (p_position - center_of_mass).cross(p_force);
+	}
+
+	_FORCE_INLINE_ void apply_torque(real_t p_torque) {
+		applied_torque += p_torque;
+	}
+
+	_FORCE_INLINE_ void add_constant_central_force(const Vector2 &p_force) {
+		constant_force += p_force;
+	}
+
+	_FORCE_INLINE_ void add_constant_force(const Vector2 &p_force, const Vector2 &p_position = Vector2()) {
+		constant_force += p_force;
+		constant_torque += (p_position - center_of_mass).cross(p_force);
+	}
+
+	_FORCE_INLINE_ void add_constant_torque(real_t p_torque) {
+		constant_torque += p_torque;
+	}
+
+	void set_constant_force(const Vector2 &p_force) { constant_force = p_force; }
+	Vector2 get_constant_force() const { return constant_force; }
+
+	void set_constant_torque(real_t p_torque) { constant_torque = p_torque; }
+	real_t get_constant_torque() const { return constant_torque; }
 
 	void set_active(bool p_active);
 	_FORCE_INLINE_ bool is_active() const { return active; }
@@ -252,29 +300,10 @@ public:
 	void set_state(PhysicsServer2D::BodyState p_state, const Variant &p_variant);
 	Variant get_state(PhysicsServer2D::BodyState p_state) const;
 
-	void set_applied_force(const Vector2 &p_force) { applied_force = p_force; }
-	Vector2 get_applied_force() const { return applied_force; }
-
-	void set_applied_torque(real_t p_torque) { applied_torque = p_torque; }
-	real_t get_applied_torque() const { return applied_torque; }
-
-	_FORCE_INLINE_ void add_central_force(const Vector2 &p_force) {
-		applied_force += p_force;
-	}
-
-	_FORCE_INLINE_ void add_force(const Vector2 &p_force, const Vector2 &p_position = Vector2()) {
-		applied_force += p_force;
-		applied_torque += (p_position - center_of_mass).cross(p_force);
-	}
-
-	_FORCE_INLINE_ void add_torque(real_t p_torque) {
-		applied_torque += p_torque;
-	}
-
 	_FORCE_INLINE_ void set_continuous_collision_detection_mode(PhysicsServer2D::CCDMode p_mode) { continuous_cd_mode = p_mode; }
 	_FORCE_INLINE_ PhysicsServer2D::CCDMode get_continuous_collision_detection_mode() const { return continuous_cd_mode; }
 
-	void set_space(GodotSpace2D *p_space);
+	void set_space(GodotSpace2D *p_space) override;
 
 	void update_mass_properties();
 	void reset_mass_properties();
@@ -313,7 +342,7 @@ public:
 
 //add contact inline
 
-void GodotBody2D::add_contact(const Vector2 &p_local_pos, const Vector2 &p_local_normal, real_t p_depth, int p_local_shape, const Vector2 &p_collider_pos, int p_collider_shape, ObjectID p_collider_instance_id, const RID &p_collider, const Vector2 &p_collider_velocity_at_pos) {
+void GodotBody2D::add_contact(const Vector2 &p_local_pos, const Vector2 &p_local_normal, real_t p_depth, int p_local_shape, const Vector2 &p_local_velocity_at_pos, const Vector2 &p_collider_pos, int p_collider_shape, ObjectID p_collider_instance_id, const RID &p_collider, const Vector2 &p_collider_velocity_at_pos, const Vector2 &p_impulse) {
 	int c_max = contacts.size();
 
 	if (c_max == 0) {
@@ -346,6 +375,7 @@ void GodotBody2D::add_contact(const Vector2 &p_local_pos, const Vector2 &p_local
 
 	c[idx].local_pos = p_local_pos;
 	c[idx].local_normal = p_local_normal;
+	c[idx].local_velocity_at_pos = p_local_velocity_at_pos;
 	c[idx].depth = p_depth;
 	c[idx].local_shape = p_local_shape;
 	c[idx].collider_pos = p_collider_pos;
@@ -353,6 +383,7 @@ void GodotBody2D::add_contact(const Vector2 &p_local_pos, const Vector2 &p_local
 	c[idx].collider_instance_id = p_collider_instance_id;
 	c[idx].collider = p_collider;
 	c[idx].collider_velocity_at_pos = p_collider_velocity_at_pos;
+	c[idx].impulse = p_impulse;
 }
 
 #endif // GODOT_BODY_2D_H

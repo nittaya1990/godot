@@ -1,54 +1,58 @@
-/*************************************************************************/
-/*  editor_inspector.h                                                   */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_inspector.h                                                    */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef EDITOR_INSPECTOR_H
 #define EDITOR_INSPECTOR_H
 
+#include "editor_property_name_processor.h"
 #include "scene/gui/box_container.h"
-#include "scene/gui/button.h"
-#include "scene/gui/dialogs.h"
-#include "scene/gui/line_edit.h"
-#include "scene/gui/panel_container.h"
 #include "scene/gui/scroll_container.h"
-#include "scene/gui/texture_rect.h"
 
-class UndoRedo;
+class AcceptDialog;
+class Button;
+class ConfirmationDialog;
+class EditorInspector;
+class EditorValidationPanel;
+class LineEdit;
+class MarginContainer;
+class OptionButton;
+class PanelContainer;
+class PopupMenu;
+class SpinBox;
+class StyleBoxFlat;
+class TextureRect;
 
 class EditorPropertyRevert {
 public:
-	static bool get_instantiated_node_original_property(Node *p_node, const StringName &p_prop, Variant &value, bool p_check_class_default = true);
-	static bool is_node_property_different(Node *p_node, const Variant &p_current, const Variant &p_orig);
-	static bool is_property_value_different(const Variant &p_a, const Variant &p_b);
-	static Variant get_property_revert_value(Object *p_object, const StringName &p_property);
-
-	static bool can_property_revert(Object *p_object, const StringName &p_property);
+	static Variant get_property_revert_value(Object *p_object, const StringName &p_property, bool *r_is_valid);
+	static bool can_property_revert(Object *p_object, const StringName &p_property, const Variant *p_custom_current_value = nullptr);
 };
 
 class EditorProperty : public Container {
@@ -56,27 +60,39 @@ class EditorProperty : public Container {
 
 public:
 	enum MenuItems {
-		MENU_COPY_PROPERTY,
-		MENU_PASTE_PROPERTY,
+		MENU_COPY_VALUE,
+		MENU_PASTE_VALUE,
 		MENU_COPY_PROPERTY_PATH,
 		MENU_PIN_VALUE,
+		MENU_OPEN_DOCUMENTATION,
+	};
+
+	enum ColorationMode {
+		COLORATION_CONTAINER_RESOURCE,
+		COLORATION_RESOURCE,
+		COLORATION_EXTERNAL,
 	};
 
 private:
 	String label;
 	int text_size;
 	friend class EditorInspector;
-	Object *object;
+	Object *object = nullptr;
 	StringName property;
+	String property_path;
+	String doc_path;
+	bool internal = false;
+	bool has_doc_tooltip = false;
 
 	int property_usage;
 
-	bool read_only;
-	bool checkable;
-	bool checked;
-	bool draw_warning;
-	bool keying;
-	bool deletable;
+	bool read_only = false;
+	bool checkable = false;
+	bool checked = false;
+	bool draw_warning = false;
+	bool draw_prop_warning = false;
+	bool keying = false;
+	bool deletable = false;
 
 	Rect2 right_child_rect;
 	Rect2 bottom_child_rect;
@@ -90,43 +106,50 @@ private:
 	Rect2 delete_rect;
 	bool delete_hover = false;
 
-	bool can_revert;
-	bool can_pin;
-	bool pin_hidden;
-	bool pinned;
+	bool can_revert = false;
+	bool can_pin = false;
+	bool pin_hidden = false;
+	bool pinned = false;
 
-	bool use_folding;
-	bool draw_top_bg;
+	bool use_folding = false;
+	bool draw_top_bg = true;
 
 	void _update_popup();
 	void _focusable_focused(int p_index);
 
-	bool selectable;
-	bool selected;
+	bool selectable = true;
+	bool selected = false;
 	int selected_focusable;
 
 	float split_ratio;
 
 	Vector<Control *> focusables;
-	Control *label_reference;
-	Control *bottom_editor;
-	PopupMenu *menu;
+	Control *label_reference = nullptr;
+	Control *bottom_editor = nullptr;
+	PopupMenu *menu = nullptr;
 
-	mutable String tooltip_text;
-
-	Map<StringName, Variant> cache;
+	HashMap<StringName, Variant> cache;
 
 	GDVIRTUAL0(_update_property)
+	GDVIRTUAL1(_set_read_only, bool)
+
 	void _update_pin_flags();
 
 protected:
+	bool has_borders = false;
+
 	void _notification(int p_what);
 	static void _bind_methods();
 	virtual void _set_read_only(bool p_read_only);
 
 	virtual void gui_input(const Ref<InputEvent> &p_event) override;
-	virtual void unhandled_key_input(const Ref<InputEvent> &p_event) override;
+	virtual void shortcut_input(const Ref<InputEvent> &p_event) override;
 	const Color *_get_property_colors();
+
+	virtual Variant _get_cache_value(const StringName &p_prop, bool &r_valid) const;
+	virtual StringName _get_revert_property() const;
+
+	void _update_property_bg();
 
 public:
 	void emit_changed(const StringName &p_property, const Variant &p_value, const StringName &p_field = StringName(), bool p_changing = false);
@@ -140,10 +163,15 @@ public:
 	bool is_read_only() const;
 
 	Object *get_edited_object();
-	StringName get_edited_property();
+	StringName get_edited_property() const;
+	inline Variant get_edited_property_value() const { return object->get(property); }
+	EditorInspector *get_parent_inspector() const;
+
+	void set_doc_path(const String &p_doc_path);
+	void set_internal(bool p_internal);
 
 	virtual void update_property();
-	void update_revert_and_pin_status();
+	void update_editor_property_status();
 
 	virtual bool use_keying_next() const;
 
@@ -159,9 +187,12 @@ public:
 	void set_keying(bool p_keying);
 	bool is_keying() const;
 
+	virtual bool is_colored(ColorationMode p_mode) { return false; }
+
 	void set_deletable(bool p_enable);
 	bool is_deletable() const;
 	void add_focusable(Control *p_control);
+	void grab_focus(int p_focusable = -1);
 	void select(int p_focusable = -1);
 	void deselect();
 	bool is_selected() const;
@@ -174,6 +205,7 @@ public:
 
 	virtual void expand_all_folding();
 	virtual void collapse_all_folding();
+	virtual void expand_revertable();
 
 	virtual Variant get_drag_data(const Point2 &p_point) override;
 	virtual void update_cache();
@@ -188,8 +220,6 @@ public:
 	void set_object_and_property(Object *p_object, const StringName &p_property);
 	virtual Control *make_custom_tooltip(const String &p_text) const override;
 
-	String get_tooltip_text() const;
-
 	void set_draw_top_bg(bool p_draw) { draw_top_bg = p_draw; }
 
 	bool can_revert_to_default() const { return can_revert; }
@@ -202,11 +232,13 @@ public:
 class EditorInspectorPlugin : public RefCounted {
 	GDCLASS(EditorInspectorPlugin, RefCounted);
 
+public:
 	friend class EditorInspector;
 	struct AddedEditor {
 		Control *property_editor = nullptr;
 		Vector<String> properties;
 		String label;
+		bool add_to_end = false;
 	};
 
 	List<AddedEditor> added_editors;
@@ -214,23 +246,27 @@ class EditorInspectorPlugin : public RefCounted {
 protected:
 	static void _bind_methods();
 
-	GDVIRTUAL1RC(bool, _can_handle, Variant)
+	GDVIRTUAL1RC(bool, _can_handle, Object *)
 	GDVIRTUAL1(_parse_begin, Object *)
 	GDVIRTUAL2(_parse_category, Object *, String)
 	GDVIRTUAL2(_parse_group, Object *, String)
-	GDVIRTUAL7R(bool, _parse_property, Object *, int, String, int, String, int, bool)
+	GDVIRTUAL7R(bool, _parse_property, Object *, Variant::Type, String, PropertyHint, String, BitField<PropertyUsageFlags>, bool)
 	GDVIRTUAL1(_parse_end, Object *)
 
+#ifndef DISABLE_DEPRECATED
+	void _add_property_editor_bind_compat_92322(const String &p_for_property, Control *p_prop, bool p_add_to_end);
+	static void _bind_compatibility_methods();
+#endif // DISABLE_DEPRECATED
 public:
 	void add_custom_control(Control *control);
-	void add_property_editor(const String &p_for_property, Control *p_prop);
+	void add_property_editor(const String &p_for_property, Control *p_prop, bool p_add_to_end = false, const String &p_label = String());
 	void add_property_editor_for_multiple_properties(const String &p_label, const Vector<String> &p_properties, Control *p_prop);
 
 	virtual bool can_handle(Object *p_object);
 	virtual void parse_begin(Object *p_object);
 	virtual void parse_category(Object *p_object, const String &p_category);
 	virtual void parse_group(Object *p_object, const String &p_group);
-	virtual bool parse_property(Object *p_object, const Variant::Type p_type, const String &p_path, const PropertyHint p_hint, const String &p_hint_text, const uint32_t p_usage, const bool p_wide = false);
+	virtual bool parse_property(Object *p_object, const Variant::Type p_type, const String &p_path, const PropertyHint p_hint, const String &p_hint_text, const BitField<PropertyUsageFlags> p_usage, const bool p_wide = false);
 	virtual void parse_end(Object *p_object);
 };
 
@@ -238,20 +274,26 @@ class EditorInspectorCategory : public Control {
 	GDCLASS(EditorInspectorCategory, Control);
 
 	friend class EditorInspector;
+
+	// Right-click context menu options.
+	enum ClassMenuOption {
+		MENU_OPEN_DOCS,
+	};
+
 	Ref<Texture2D> icon;
 	String label;
+	String doc_class_name;
+	PopupMenu *menu = nullptr;
 
-	mutable String tooltip_text;
+	void _handle_menu_option(int p_option);
 
 protected:
 	void _notification(int p_what);
-	static void _bind_methods();
+	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 
 public:
 	virtual Size2 get_minimum_size() const override;
 	virtual Control *make_custom_tooltip(const String &p_text) const override;
-
-	String get_tooltip_text() const;
 
 	EditorInspectorCategory();
 };
@@ -261,18 +303,25 @@ class EditorInspectorSection : public Container {
 
 	String label;
 	String section;
-	bool vbox_added; // Optimization.
+	bool vbox_added = false; // Optimization.
 	Color bg_color;
-	bool foldable;
+	bool foldable = false;
+	int indent_depth = 0;
+	int level = 1;
 
-	Timer *dropping_unfold_timer;
-	bool dropping;
+	Timer *dropping_unfold_timer = nullptr;
+	bool dropping = false;
+	bool dropping_for_unfold = false;
+
+	HashSet<StringName> revertable_properties;
 
 	void _test_unfold();
+	int _get_header_height();
+	Ref<Texture2D> _get_arrow();
 
 protected:
-	Object *object;
-	VBoxContainer *vbox;
+	Object *object = nullptr;
+	VBoxContainer *vbox = nullptr;
 
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -281,10 +330,14 @@ protected:
 public:
 	virtual Size2 get_minimum_size() const override;
 
-	void setup(const String &p_section, const String &p_label, Object *p_object, const Color &p_bg_color, bool p_foldable);
+	void setup(const String &p_section, const String &p_label, Object *p_object, const Color &p_bg_color, bool p_foldable, int p_indent_depth = 0, int p_level = 1);
 	VBoxContainer *get_vbox();
 	void unfold();
 	void fold();
+	void set_bg_color(const Color &p_bg_color);
+
+	bool has_revertable_properties() const;
+	void property_can_revert_changed(const String &p_path, bool p_can_revert);
 
 	EditorInspectorSection();
 	~EditorInspectorSection();
@@ -293,42 +346,37 @@ public:
 class EditorInspectorArray : public EditorInspectorSection {
 	GDCLASS(EditorInspectorArray, EditorInspectorSection);
 
-	UndoRedo *undo_redo;
-
 	enum Mode {
 		MODE_NONE,
 		MODE_USE_COUNT_PROPERTY,
 		MODE_USE_MOVE_ARRAY_ELEMENT_FUNCTION,
-	} mode;
+	} mode = MODE_NONE;
 	StringName count_property;
 	StringName array_element_prefix;
+	String swap_method;
 
 	int count = 0;
 
-	VBoxContainer *elements_vbox;
+	VBoxContainer *elements_vbox = nullptr;
 
-	Control *control_dropping;
+	Control *control_dropping = nullptr;
 	bool dropping = false;
 
-	Button *add_button;
+	Button *add_button = nullptr;
 
-	AcceptDialog *resize_dialog;
-	int new_size = 0;
-	LineEdit *new_size_line_edit;
+	AcceptDialog *resize_dialog = nullptr;
+	SpinBox *new_size_spin_box = nullptr;
 
-	// Pagination
-	int page_lenght = 5;
+	// Pagination.
+	int page_length = 5;
 	int page = 0;
 	int max_page = 0;
 	int begin_array_index = 0;
 	int end_array_index = 0;
-	HBoxContainer *hbox_pagination;
-	Button *first_page_button;
-	Button *prev_page_button;
-	LineEdit *page_line_edit;
-	Label *page_count_label;
-	Button *next_page_button;
-	Button *last_page_button;
+
+	bool read_only = false;
+	bool movable = true;
+	bool numbered = false;
 
 	enum MenuOptions {
 		OPTION_MOVE_UP = 0,
@@ -340,14 +388,18 @@ class EditorInspectorArray : public EditorInspectorSection {
 		OPTION_RESIZE_ARRAY,
 	};
 	int popup_array_index_pressed = -1;
-	PopupMenu *rmb_popup;
+	PopupMenu *rmb_popup = nullptr;
 
 	struct ArrayElement {
-		PanelContainer *panel;
-		MarginContainer *margin;
-		HBoxContainer *hbox;
-		TextureRect *move_texture_rect;
-		VBoxContainer *vbox;
+		PanelContainer *panel = nullptr;
+		MarginContainer *margin = nullptr;
+		HBoxContainer *hbox = nullptr;
+		Button *move_up = nullptr;
+		TextureRect *move_texture_rect = nullptr;
+		Button *move_down = nullptr;
+		Label *number = nullptr;
+		VBoxContainer *vbox = nullptr;
+		Button *erase = nullptr;
 	};
 	LocalVector<ArrayElement> array_elements;
 
@@ -356,12 +408,7 @@ class EditorInspectorArray : public EditorInspectorSection {
 
 	int _get_array_count();
 	void _add_button_pressed();
-
-	void _first_page_button_pressed();
-	void _prev_page_button_pressed();
-	void _page_line_edit_text_submitted(String p_text);
-	void _next_page_button_pressed();
-	void _last_page_button_pressed();
+	void _paginator_page_changed(int p_page);
 
 	void _rmb_popup_id_pressed(int p_id);
 
@@ -377,8 +424,8 @@ class EditorInspectorArray : public EditorInspectorSection {
 	Array _extract_properties_as_array(const List<PropertyInfo> &p_list);
 	int _drop_position() const;
 
-	void _new_size_line_edit_text_changed(String p_text);
-	void _new_size_line_edit_text_submitted(String p_text);
+	void _new_size_spin_box_value_changed(float p_value);
+	void _new_size_spin_box_text_submitted(const String &p_text);
 	void _resize_dialog_confirmed();
 
 	void _update_elements_visibility();
@@ -388,72 +435,108 @@ class EditorInspectorArray : public EditorInspectorSection {
 	void drop_data_fw(const Point2 &p_point, const Variant &p_data, Control *p_from);
 	bool can_drop_data_fw(const Point2 &p_point, const Variant &p_data, Control *p_from) const;
 
+	void _remove_item(int p_index);
+
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
-	void set_undo_redo(UndoRedo *p_undo_redo);
-
-	void setup_with_move_element_function(Object *p_object, String p_label, const StringName &p_array_element_prefix, int p_page, const Color &p_bg_color, bool p_foldable);
-	void setup_with_count_property(Object *p_object, String p_label, const StringName &p_count_property, const StringName &p_array_element_prefix, int p_page, const Color &p_bg_color, bool p_foldable);
+	void setup_with_move_element_function(Object *p_object, const String &p_label, const StringName &p_array_element_prefix, int p_page, const Color &p_bg_color, bool p_foldable, bool p_movable = true, bool p_numbered = false, int p_page_length = 5, const String &p_add_item_text = "");
+	void setup_with_count_property(Object *p_object, const String &p_label, const StringName &p_count_property, const StringName &p_array_element_prefix, int p_page, const Color &p_bg_color, bool p_foldable, bool p_movable = true, bool p_numbered = false, int p_page_length = 5, const String &p_add_item_text = "", const String &p_swap_method = "");
 	VBoxContainer *get_vbox(int p_index);
 
-	EditorInspectorArray();
+	EditorInspectorArray(bool p_read_only);
+};
+
+class EditorPaginator : public HBoxContainer {
+	GDCLASS(EditorPaginator, HBoxContainer);
+
+	int page = 0;
+	int max_page = 0;
+	Button *first_page_button = nullptr;
+	Button *prev_page_button = nullptr;
+	LineEdit *page_line_edit = nullptr;
+	Label *page_count_label = nullptr;
+	Button *next_page_button = nullptr;
+	Button *last_page_button = nullptr;
+
+	void _first_page_button_pressed();
+	void _prev_page_button_pressed();
+	void _page_line_edit_text_submitted(const String &p_text);
+	void _next_page_button_pressed();
+	void _last_page_button_pressed();
+
+protected:
+	void _notification(int p_what);
+	static void _bind_methods();
+
+public:
+	void update(int p_page, int p_max_page);
+
+	EditorPaginator();
 };
 
 class EditorInspector : public ScrollContainer {
 	GDCLASS(EditorInspector, ScrollContainer);
 
-	UndoRedo *undo_redo;
 	enum {
 		MAX_PLUGINS = 1024
 	};
 	static Ref<EditorInspectorPlugin> inspector_plugins[MAX_PLUGINS];
 	static int inspector_plugin_count;
 
-	VBoxContainer *main_vbox;
+	VBoxContainer *main_vbox = nullptr;
 
-	//map use to cache the instantiated editors
-	Map<StringName, List<EditorProperty *>> editor_property_map;
+	// Map used to cache the instantiated editors.
+	HashMap<StringName, List<EditorProperty *>> editor_property_map;
 	List<EditorInspectorSection *> sections;
-	Set<StringName> pending;
+	HashSet<StringName> pending;
 
-	void _clear();
-	Object *object;
+	void _clear(bool p_hide_plugins = true);
+	Object *object = nullptr;
+	Object *next_object = nullptr;
 
 	//
 
-	LineEdit *search_box;
-	bool show_categories;
-	bool hide_script;
-	bool use_doc_hints;
-	bool capitalize_paths;
-	bool use_filter;
-	bool autoclear;
-	bool use_folding;
+	LineEdit *search_box = nullptr;
+	bool show_standard_categories = false;
+	bool show_custom_categories = false;
+	bool hide_script = true;
+	bool hide_metadata = true;
+	bool use_doc_hints = false;
+	EditorPropertyNameProcessor::Style property_name_style = EditorPropertyNameProcessor::STYLE_CAPITALIZED;
+	bool use_settings_name_style = true;
+	bool use_filter = false;
+	bool autoclear = false;
+	bool use_folding = false;
 	int changing;
-	bool update_all_pending;
-	bool read_only;
-	bool keying;
-	bool sub_inspector;
-	bool wide_editors;
-	bool deletable_properties;
+	bool update_all_pending = false;
+	bool read_only = false;
+	bool keying = false;
+	bool sub_inspector = false;
+	bool wide_editors = false;
+	bool deletable_properties = false;
 
 	float refresh_countdown;
-	bool update_tree_pending;
+	bool update_tree_pending = false;
 	StringName _prop_edited;
 	StringName property_selected;
 	int property_focusable;
 	int update_scroll_request;
 
-	Map<StringName, Map<StringName, String>> descr_cache;
-	Map<StringName, String> class_descr_cache;
-	Set<StringName> restart_request_props;
+	struct DocCacheInfo {
+		String doc_path;
+		String theme_item_name;
+	};
 
-	Map<ObjectID, int> scroll_cache;
+	HashMap<StringName, HashMap<StringName, DocCacheInfo>> doc_cache;
+	HashSet<StringName> restart_request_props;
+	HashMap<String, String> custom_property_descriptions;
 
-	String property_prefix; //used for sectioned inspector
+	HashMap<ObjectID, int> scroll_cache;
+
+	String property_prefix; // Used for sectioned inspector.
 	String object_class;
 	Variant property_clipboard;
 
@@ -462,36 +545,45 @@ class EditorInspector : public ScrollContainer {
 	void _edit_set(const String &p_name, const Variant &p_value, bool p_refresh_all, const String &p_changed_field);
 
 	void _property_changed(const String &p_path, const Variant &p_value, const String &p_name = "", bool p_changing = false, bool p_update_all = false);
-	void _multiple_properties_changed(Vector<String> p_paths, Array p_values, bool p_changing = false);
+	void _multiple_properties_changed(const Vector<String> &p_paths, const Array &p_values, bool p_changing = false);
 	void _property_keyed(const String &p_path, bool p_advance);
 	void _property_keyed_with_value(const String &p_path, const Variant &p_value, bool p_advance);
 	void _property_deleted(const String &p_path);
 	void _property_checked(const String &p_path, bool p_checked);
 	void _property_pinned(const String &p_path, bool p_pinned);
+	bool _property_path_matches(const String &p_property_path, const String &p_filter, EditorPropertyNameProcessor::Style p_style);
 
-	void _resource_selected(const String &p_path, RES p_resource);
+	void _resource_selected(const String &p_path, Ref<Resource> p_resource);
 	void _property_selected(const String &p_path, int p_focusable);
 	void _object_id_selected(const String &p_path, ObjectID p_id);
 
 	void _node_removed(Node *p_node);
 
-	Map<StringName, int> per_array_page;
+	HashMap<StringName, int> per_array_page;
 	void _page_change_request(int p_new_page, const StringName &p_array_prefix);
 
 	void _changed_callback();
 	void _edit_request_change(Object *p_object, const String &p_prop);
 
+	void _keying_changed();
+
 	void _filter_changed(const String &p_text);
-	void _parse_added_editors(VBoxContainer *current_vbox, Ref<EditorInspectorPlugin> ped);
+	void _parse_added_editors(VBoxContainer *current_vbox, EditorInspectorSection *p_section, Ref<EditorInspectorPlugin> ped);
 
 	void _vscroll_changed(double);
 
 	void _feature_profile_changed();
-	void _update_script_class_properties(const Object &p_object, List<PropertyInfo> &r_list) const;
 
 	bool _is_property_disabled_by_feature_profile(const StringName &p_property);
 
-	void _update_inspector_bg();
+	ConfirmationDialog *add_meta_dialog = nullptr;
+	LineEdit *add_meta_name = nullptr;
+	OptionButton *add_meta_type = nullptr;
+	EditorValidationPanel *validation_panel = nullptr;
+
+	void _add_meta_confirm();
+	void _show_add_meta_dialog();
+	void _check_meta_name();
 
 protected:
 	static void _bind_methods();
@@ -501,43 +593,53 @@ public:
 	static void add_inspector_plugin(const Ref<EditorInspectorPlugin> &p_plugin);
 	static void remove_inspector_plugin(const Ref<EditorInspectorPlugin> &p_plugin);
 	static void cleanup_plugins();
+	static Button *create_inspector_action_button(const String &p_text);
 
 	static EditorProperty *instantiate_property_editor(Object *p_object, const Variant::Type p_type, const String &p_path, const PropertyHint p_hint, const String &p_hint_text, const uint32_t p_usage, const bool p_wide = false);
 
-	void set_undo_redo(UndoRedo *p_undo_redo);
-
+	bool is_main_editor_inspector() const;
 	String get_selected_path() const;
 
 	void update_tree();
 	void update_property(const String &p_prop);
 	void edit(Object *p_object);
 	Object *get_edited_object();
+	Object *get_next_edited_object();
 
 	void set_keying(bool p_active);
 	void set_read_only(bool p_read_only);
 
-	bool is_capitalize_paths_enabled() const;
-	void set_enable_capitalize_paths(bool p_capitalize);
+	EditorPropertyNameProcessor::Style get_property_name_style() const;
+	void set_property_name_style(EditorPropertyNameProcessor::Style p_style);
+
+	// If true, the inspector will update its property name style according to the current editor settings.
+	void set_use_settings_name_style(bool p_enable);
+
 	void set_autoclear(bool p_enable);
 
-	void set_show_categories(bool p_show);
+	void set_show_categories(bool p_show_standard, bool p_show_custom);
 	void set_use_doc_hints(bool p_enable);
 	void set_hide_script(bool p_hide);
+	void set_hide_metadata(bool p_hide);
 
 	void set_use_filter(bool p_use);
 	void register_text_enter(Node *p_line_edit);
 
-	void set_use_folding(bool p_enable);
+	void set_use_folding(bool p_use_folding, bool p_update_tree = true);
 	bool is_using_folding();
 
 	void collapse_all_folding();
 	void expand_all_folding();
+	void expand_revertable();
 
 	void set_scroll_offset(int p_offset);
 	int get_scroll_offset() const;
 
 	void set_property_prefix(const String &p_prefix);
 	String get_property_prefix() const;
+
+	void add_custom_property_description(const String &p_class, const String &p_property, const String &p_description);
+	String get_custom_property_description(const String &p_property) const;
 
 	void set_object_class(const String &p_class);
 	String get_object_class() const;
@@ -555,4 +657,4 @@ public:
 	EditorInspector();
 };
 
-#endif // INSPECTOR_H
+#endif // EDITOR_INSPECTOR_H

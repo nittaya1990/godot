@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  test_class_db.h                                                      */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  test_class_db.h                                                       */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef TEST_CLASS_DB_H
 #define TEST_CLASS_DB_H
@@ -46,7 +46,7 @@ struct TypeReference {
 
 struct ConstantData {
 	String name;
-	int value = 0;
+	int64_t value = 0;
 };
 
 struct EnumData {
@@ -71,6 +71,7 @@ struct ArgumentData {
 	String name;
 	bool has_defval = false;
 	Variant defval;
+	int position;
 };
 
 struct MethodData {
@@ -140,7 +141,7 @@ struct NamesCache {
 	StringName vector3_type = StaticCString::create("Vector3");
 
 	// Object not included as it must be checked for all derived classes
-	static constexpr int nullable_types_count = 17;
+	static constexpr int nullable_types_count = 18;
 	StringName nullable_types[nullable_types_count] = {
 		string_type,
 		string_name_type,
@@ -160,6 +161,7 @@ struct NamesCache {
 		StaticCString::create(_STR(PackedVector2Array)),
 		StaticCString::create(_STR(PackedVector3Array)),
 		StaticCString::create(_STR(PackedColorArray)),
+		StaticCString::create(_STR(PackedVector4Array)),
 	};
 
 	bool is_nullable_type(const StringName &p_type) const {
@@ -173,7 +175,7 @@ struct NamesCache {
 	}
 };
 
-typedef OrderedHashMap<StringName, ExposedClass> ExposedClasses;
+typedef HashMap<StringName, ExposedClass> ExposedClasses;
 
 struct Context {
 	Vector<StringName> enum_types;
@@ -183,22 +185,22 @@ struct Context {
 	NamesCache names_cache;
 
 	const ExposedClass *find_exposed_class(const StringName &p_name) const {
-		ExposedClasses::ConstElement elem = exposed_classes.find(p_name);
-		return elem ? &elem.value() : nullptr;
+		ExposedClasses::ConstIterator elem = exposed_classes.find(p_name);
+		return elem ? &elem->value : nullptr;
 	}
 
 	const ExposedClass *find_exposed_class(const TypeReference &p_type_ref) const {
-		ExposedClasses::ConstElement elem = exposed_classes.find(p_type_ref.name);
-		return elem ? &elem.value() : nullptr;
+		ExposedClasses::ConstIterator elem = exposed_classes.find(p_type_ref.name);
+		return elem ? &elem->value : nullptr;
 	}
 
 	bool has_type(const TypeReference &p_type_ref) const {
-		if (builtin_types.find(p_type_ref.name) >= 0) {
+		if (builtin_types.has(p_type_ref.name)) {
 			return true;
 		}
 
 		if (p_type_ref.is_enum) {
-			if (enum_types.find(p_type_ref.name) >= 0) {
+			if (enum_types.has(p_type_ref.name)) {
 				return true;
 			}
 
@@ -257,6 +259,7 @@ bool arg_default_value_is_assignable_to_type(const Context &p_context, const Var
 		case Variant::PACKED_VECTOR2_ARRAY:
 		case Variant::PACKED_VECTOR3_ARRAY:
 		case Variant::PACKED_COLOR_ARRAY:
+		case Variant::PACKED_VECTOR4_ARRAY:
 		case Variant::CALLABLE:
 		case Variant::SIGNAL:
 			return p_arg_type.name == Variant::get_type_name(p_val.get_type());
@@ -352,7 +355,7 @@ void validate_property(const Context &p_context, const ExposedClass &p_class, co
 			const ArgumentData &idx_arg = getter->arguments.front()->get();
 			if (idx_arg.type.name != p_context.names_cache.int_type) {
 				// If not an int, it can be an enum
-				TEST_COND(p_context.enum_types.find(idx_arg.type.name) < 0,
+				TEST_COND(!p_context.enum_types.has(idx_arg.type.name),
 						"Invalid type '", idx_arg.type.name, "' for index argument of property getter: '", p_class.name, ".", String(p_prop.name), "'.");
 			}
 		}
@@ -364,10 +367,45 @@ void validate_property(const Context &p_context, const ExposedClass &p_class, co
 			if (idx_arg.type.name != p_context.names_cache.int_type) {
 				// Assume the index parameter is an enum
 				// If not an int, it can be an enum
-				TEST_COND(p_context.enum_types.find(idx_arg.type.name) < 0,
+				TEST_COND(!p_context.enum_types.has(idx_arg.type.name),
 						"Invalid type '", idx_arg.type.name, "' for index argument of property setter: '", p_class.name, ".", String(p_prop.name), "'.");
 			}
 		}
+	}
+}
+
+void validate_argument(const Context &p_context, const ExposedClass &p_class, const String &p_owner_name, const String &p_owner_type, const ArgumentData &p_arg) {
+#ifdef DEBUG_METHODS_ENABLED
+	TEST_COND((p_arg.name.is_empty() || p_arg.name.begins_with("_unnamed_arg")),
+			vformat("Unnamed argument in position %d of %s '%s.%s'.", p_arg.position, p_owner_type, p_class.name, p_owner_name));
+#endif // DEBUG_METHODS_ENABLED
+
+	const ExposedClass *arg_class = p_context.find_exposed_class(p_arg.type);
+	if (arg_class) {
+		TEST_COND(arg_class->is_singleton,
+				vformat("Argument type is a singleton: '%s' of %s '%s.%s'.", p_arg.name, p_owner_type, p_class.name, p_owner_name));
+
+		if (p_class.api_type == ClassDB::API_CORE) {
+			TEST_COND(arg_class->api_type == ClassDB::API_EDITOR,
+					vformat("Argument '%s' of %s '%s.%s' has type '%s' from the editor API. Core API cannot have dependencies on the editor API.",
+							p_arg.name, p_owner_type, p_class.name, p_owner_name, arg_class->name));
+		}
+	} else {
+		// Look for types that don't inherit Object.
+		TEST_FAIL_COND(!p_context.has_type(p_arg.type),
+				vformat("Argument type '%s' not found: '%s' of %s '%s.%s'.", p_arg.type.name, p_arg.name, p_owner_type, p_class.name, p_owner_name));
+	}
+
+	if (p_arg.has_defval) {
+		String type_error_msg;
+		bool arg_defval_assignable_to_type = arg_default_value_is_assignable_to_type(p_context, p_arg.defval, p_arg.type, &type_error_msg);
+
+		String err_msg = vformat("Invalid default value for parameter '%s' of %s '%s.%s'.", p_arg.name, p_owner_type, p_class.name, p_owner_name);
+		if (!type_error_msg.is_empty()) {
+			err_msg += " " + type_error_msg;
+		}
+
+		TEST_COND(!arg_defval_assignable_to_type, err_msg);
 	}
 }
 
@@ -375,9 +413,6 @@ void validate_method(const Context &p_context, const ExposedClass &p_class, cons
 	if (p_method.return_type.name != StringName()) {
 		const ExposedClass *return_class = p_context.find_exposed_class(p_method.return_type);
 		if (return_class) {
-			TEST_COND(return_class->is_singleton,
-					"Method return type is a singleton: '", p_class.name, ".", p_method.name, "'.");
-
 			if (p_class.api_type == ClassDB::API_CORE) {
 				TEST_COND(return_class->api_type == ClassDB::API_EDITOR,
 						"Method '", p_class.name, ".", p_method.name, "' has return type '", return_class->name,
@@ -392,54 +427,14 @@ void validate_method(const Context &p_context, const ExposedClass &p_class, cons
 
 	for (const ArgumentData &F : p_method.arguments) {
 		const ArgumentData &arg = F;
-
-		const ExposedClass *arg_class = p_context.find_exposed_class(arg.type);
-		if (arg_class) {
-			TEST_COND(arg_class->is_singleton,
-					"Argument type is a singleton: '", arg.name, "' of method '", p_class.name, ".", p_method.name, "'.");
-
-			if (p_class.api_type == ClassDB::API_CORE) {
-				TEST_COND(arg_class->api_type == ClassDB::API_EDITOR,
-						"Argument '", arg.name, "' of method '", p_class.name, ".", p_method.name, "' has type '",
-						arg_class->name, "' from the editor API. Core API cannot have dependencies on the editor API.");
-			}
-		} else {
-			// Look for types that don't inherit Object
-			TEST_FAIL_COND(!p_context.has_type(arg.type),
-					"Argument type '", arg.type.name, "' not found: '", arg.name, "' of method", p_class.name, ".", p_method.name, "'.");
-		}
-
-		if (arg.has_defval) {
-			String type_error_msg;
-			bool arg_defval_assignable_to_type = arg_default_value_is_assignable_to_type(p_context, arg.defval, arg.type, &type_error_msg);
-			String err_msg = vformat("Invalid default value for parameter '%s' of method '%s.%s'.", arg.name, p_class.name, p_method.name);
-			if (!type_error_msg.is_empty()) {
-				err_msg += " " + type_error_msg;
-			}
-			TEST_COND(!arg_defval_assignable_to_type, err_msg.utf8().get_data());
-		}
+		validate_argument(p_context, p_class, p_method.name, "method", arg);
 	}
 }
 
 void validate_signal(const Context &p_context, const ExposedClass &p_class, const SignalData &p_signal) {
 	for (const ArgumentData &F : p_signal.arguments) {
 		const ArgumentData &arg = F;
-
-		const ExposedClass *arg_class = p_context.find_exposed_class(arg.type);
-		if (arg_class) {
-			TEST_COND(arg_class->is_singleton,
-					"Argument class is a singleton: '", arg.name, "' of signal '", p_class.name, ".", p_signal.name, "'.");
-
-			if (p_class.api_type == ClassDB::API_CORE) {
-				TEST_COND(arg_class->api_type == ClassDB::API_EDITOR,
-						"Argument '", arg.name, "' of signal '", p_class.name, ".", p_signal.name, "' has type '",
-						arg_class->name, "' from the editor API. Core API cannot have dependencies on the editor API.");
-			}
-		} else {
-			// Look for types that don't inherit Object
-			TEST_FAIL_COND(!p_context.has_type(arg.type),
-					"Argument type '", arg.type.name, "' not found: '", arg.name, "' of signal", p_class.name, ".", p_signal.name, "'.");
-		}
+		validate_argument(p_context, p_class, p_signal.name, "signal", arg);
 	}
 }
 
@@ -493,13 +488,13 @@ void add_exposed_classes(Context &r_context) {
 		}
 
 		if (!ClassDB::is_class_exposed(class_name)) {
-			MESSAGE(vformat("Ignoring class '%s' because it's not exposed.", class_name).utf8().get_data());
+			INFO(vformat("Ignoring class '%s' because it's not exposed.", class_name));
 			class_list.pop_front();
 			continue;
 		}
 
 		if (!ClassDB::is_class_enabled(class_name)) {
-			MESSAGE(vformat("Ignoring class '%s' because it's not enabled.", class_name).utf8().get_data());
+			INFO(vformat("Ignoring class '%s' because it's not enabled.", class_name));
 			class_list.pop_front();
 			continue;
 		}
@@ -519,7 +514,7 @@ void add_exposed_classes(Context &r_context) {
 		List<PropertyInfo> property_list;
 		ClassDB::get_property_list(class_name, &property_list, true);
 
-		Map<StringName, StringName> accessor_methods;
+		HashMap<StringName, StringName> accessor_methods;
 
 		for (const PropertyInfo &property : property_list) {
 			if (property.usage & PROPERTY_USAGE_GROUP || property.usage & PROPERTY_USAGE_SUBGROUP || property.usage & PROPERTY_USAGE_CATEGORY || (property.type == Variant::NIL && property.usage & PROPERTY_USAGE_ARRAY)) {
@@ -557,14 +552,14 @@ void add_exposed_classes(Context &r_context) {
 		for (const MethodInfo &E : method_list) {
 			const MethodInfo &method_info = E;
 
-			int argc = method_info.arguments.size();
-
 			if (method_info.name.is_empty()) {
 				continue;
 			}
 
 			MethodData method;
 			method.name = method_info.name;
+			TEST_FAIL_COND(!String(method.name).is_valid_identifier(),
+					"Method name is not a valid identifier: '", exposed_class.name, ".", method.name, "'.");
 
 			if (method_info.flags & METHOD_FLAG_VIRTUAL) {
 				method.is_virtual = true;
@@ -595,9 +590,9 @@ void add_exposed_classes(Context &r_context) {
 						exposed_class.name, method.name);
 				TEST_FAIL_COND_WARN(
 						(exposed_class.name != r_context.names_cache.object_class || String(method.name) != "free"),
-						warn_msg.utf8().get_data());
+						warn_msg);
 
-			} else if (return_info.type == Variant::INT && return_info.usage & PROPERTY_USAGE_CLASS_IS_ENUM) {
+			} else if (return_info.type == Variant::INT && return_info.usage & (PROPERTY_USAGE_CLASS_IS_ENUM | PROPERTY_USAGE_CLASS_IS_BITFIELD)) {
 				method.return_type.name = return_info.class_name;
 				method.return_type.is_enum = true;
 			} else if (return_info.class_name != StringName()) {
@@ -618,15 +613,17 @@ void add_exposed_classes(Context &r_context) {
 				method.return_type.name = Variant::get_type_name(return_info.type);
 			}
 
-			for (int i = 0; i < argc; i++) {
-				PropertyInfo arg_info = method_info.arguments[i];
+			int i = 0;
+			for (List<PropertyInfo>::ConstIterator itr = method_info.arguments.begin(); itr != method_info.arguments.end(); ++itr, ++i) {
+				const PropertyInfo &arg_info = *itr;
 
 				String orig_arg_name = arg_info.name;
 
 				ArgumentData arg;
 				arg.name = orig_arg_name;
+				arg.position = i;
 
-				if (arg_info.type == Variant::INT && arg_info.usage & PROPERTY_USAGE_CLASS_IS_ENUM) {
+				if (arg_info.type == Variant::INT && arg_info.usage & (PROPERTY_USAGE_CLASS_IS_ENUM | PROPERTY_USAGE_CLASS_IS_BITFIELD)) {
 					arg.type.name = arg_info.class_name;
 					arg.type.is_enum = true;
 				} else if (arg_info.class_name != StringName()) {
@@ -680,26 +677,27 @@ void add_exposed_classes(Context &r_context) {
 		// Add signals
 
 		const HashMap<StringName, MethodInfo> &signal_map = class_info->signal_map;
-		const StringName *k = nullptr;
 
-		while ((k = signal_map.next(k))) {
+		for (const KeyValue<StringName, MethodInfo> &K : signal_map) {
 			SignalData signal;
 
-			const MethodInfo &method_info = signal_map.get(*k);
+			const MethodInfo &method_info = signal_map.get(K.key);
 
 			signal.name = method_info.name;
+			TEST_FAIL_COND(!String(signal.name).is_valid_identifier(),
+					"Signal name is not a valid identifier: '", exposed_class.name, ".", signal.name, "'.");
 
-			int argc = method_info.arguments.size();
-
-			for (int i = 0; i < argc; i++) {
-				PropertyInfo arg_info = method_info.arguments[i];
+			int i = 0;
+			for (List<PropertyInfo>::ConstIterator itr = method_info.arguments.begin(); itr != method_info.arguments.end(); ++itr, ++i) {
+				const PropertyInfo &arg_info = *itr;
 
 				String orig_arg_name = arg_info.name;
 
 				ArgumentData arg;
 				arg.name = orig_arg_name;
+				arg.position = i;
 
-				if (arg_info.type == Variant::INT && arg_info.usage & PROPERTY_USAGE_CLASS_IS_ENUM) {
+				if (arg_info.type == Variant::INT && arg_info.usage & (PROPERTY_USAGE_CLASS_IS_ENUM | PROPERTY_USAGE_CLASS_IS_BITFIELD)) {
 					arg.type.name = arg_info.class_name;
 					arg.type.is_enum = true;
 				} else if (arg_info.class_name != StringName()) {
@@ -718,16 +716,11 @@ void add_exposed_classes(Context &r_context) {
 
 			bool method_conflict = exposed_class.find_property_by_name(signal.name);
 
-			// TODO:
-			// ClassDB allows signal names that conflict with method or property names.
-			// However registering a signal with a conflicting name is still considered wrong.
-			// Unfortunately there are some existing cases that are yet to be fixed.
-			// Until those are fixed we will print a warning instead of failing the test.
 			String warn_msg = vformat(
 					"Signal name conflicts with %s: '%s.%s.",
 					method_conflict ? "method" : "property", class_name, signal.name);
-			TEST_FAIL_COND_WARN((method_conflict || exposed_class.find_method_by_name(signal.name)),
-					warn_msg.utf8().get_data());
+			TEST_FAIL_COND((method_conflict || exposed_class.find_method_by_name(signal.name)),
+					warn_msg);
 
 			exposed_class.signals_.push_back(signal);
 		}
@@ -737,20 +730,18 @@ void add_exposed_classes(Context &r_context) {
 		List<String> constants;
 		ClassDB::get_integer_constant_list(class_name, &constants, true);
 
-		const HashMap<StringName, List<StringName>> &enum_map = class_info->enum_map;
-		k = nullptr;
+		const HashMap<StringName, ClassDB::ClassInfo::EnumInfo> &enum_map = class_info->enum_map;
 
-		while ((k = enum_map.next(k))) {
+		for (const KeyValue<StringName, ClassDB::ClassInfo::EnumInfo> &K : enum_map) {
 			EnumData enum_;
-			enum_.name = *k;
+			enum_.name = K.key;
 
-			const List<StringName> &enum_constants = enum_map.get(*k);
-			for (const StringName &E : enum_constants) {
+			for (const StringName &E : K.value.constants) {
 				const StringName &constant_name = E;
-				TEST_FAIL_COND(String(constant_name).find("::") != -1,
+				TEST_FAIL_COND(String(constant_name).contains("::"),
 						"Enum constant contains '::', check bindings to remove the scope: '",
 						String(class_name), ".", String(enum_.name), ".", String(constant_name), "'.");
-				int *value = class_info->constant_map.getptr(constant_name);
+				int64_t *value = class_info->constant_map.getptr(constant_name);
 				TEST_FAIL_COND(!value, "Missing enum constant value: '",
 						String(class_name), ".", String(enum_.name), ".", String(constant_name), "'.");
 				constants.erase(constant_name);
@@ -764,15 +755,15 @@ void add_exposed_classes(Context &r_context) {
 
 			exposed_class.enums.push_back(enum_);
 
-			r_context.enum_types.push_back(String(class_name) + "." + String(*k));
+			r_context.enum_types.push_back(String(class_name) + "." + String(K.key));
 		}
 
 		for (const String &E : constants) {
 			const String &constant_name = E;
-			TEST_FAIL_COND(constant_name.find("::") != -1,
+			TEST_FAIL_COND(constant_name.contains("::"),
 					"Constant contains '::', check bindings to remove the scope: '",
 					String(class_name), ".", constant_name, "'.");
-			int *value = class_info->constant_map.getptr(StringName(E));
+			int64_t *value = class_info->constant_map.getptr(StringName(E));
 			TEST_FAIL_COND(!value, "Missing constant value: '", String(class_name), ".", String(constant_name), "'.");
 
 			ConstantData constant;
@@ -848,14 +839,14 @@ TEST_SUITE("[ClassDB]") {
 		add_builtin_types(context);
 		add_global_enums(context);
 
-		SUBCASE("[ClassDB] Find exposed class") {
+		SUBCASE("[ClassDB] Validate exposed classes") {
 			const ExposedClass *object_class = context.find_exposed_class(context.names_cache.object_class);
 			TEST_FAIL_COND(!object_class, "Object class not found.");
 			TEST_FAIL_COND(object_class->base != StringName(),
 					"Object class derives from another class: '", object_class->base, "'.");
 
-			for (ExposedClasses::Element E = context.exposed_classes.front(); E; E = E.next()) {
-				validate_class(context, E.value());
+			for (const KeyValue<StringName, ExposedClass> &E : context.exposed_classes) {
+				validate_class(context, E.value);
 			}
 		}
 	}

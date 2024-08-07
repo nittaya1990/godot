@@ -1,42 +1,42 @@
-/*************************************************************************/
-/*  csg_shape.h                                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  csg_shape.h                                                           */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef CSG_SHAPE_H
 #define CSG_SHAPE_H
 
-#define CSGJS_HEADER_ONLY
-
 #include "csg.h"
+
 #include "scene/3d/path_3d.h"
 #include "scene/3d/visual_instance_3d.h"
-#include "scene/resources/concave_polygon_shape_3d.h"
+#include "scene/resources/3d/concave_polygon_shape_3d.h"
+
 #include "thirdparty/misc/mikktspace.h"
 
 class CSGShape3D : public GeometryInstance3D {
@@ -52,20 +52,24 @@ public:
 
 private:
 	Operation operation = OPERATION_UNION;
-	CSGShape3D *parent = nullptr;
+	CSGShape3D *parent_shape = nullptr;
 
 	CSGBrush *brush = nullptr;
 
 	AABB node_aabb;
 
 	bool dirty = false;
+	bool last_visible = false;
 	float snap = 0.001;
 
 	bool use_collision = false;
 	uint32_t collision_layer = 1;
 	uint32_t collision_mask = 1;
+	real_t collision_priority = 1.0;
 	Ref<ConcavePolygonShape3D> root_collision_shape;
 	RID root_collision_instance;
+	RID root_collision_debug_instance;
+	Transform3D debug_shape_old_transform;
 
 	bool calculate_tangents = true;
 
@@ -73,9 +77,9 @@ private:
 
 	struct Vector3Hasher {
 		_ALWAYS_INLINE_ uint32_t hash(const Vector3 &p_vec3) const {
-			uint32_t h = hash_djb2_one_float(p_vec3.x);
-			h = hash_djb2_one_float(p_vec3.y, h);
-			h = hash_djb2_one_float(p_vec3.z, h);
+			uint32_t h = hash_murmur3_one_float(p_vec3.x);
+			h = hash_murmur3_one_float(p_vec3.y, h);
+			h = hash_murmur3_one_float(p_vec3.z, h);
 			return h;
 		}
 	};
@@ -104,18 +108,23 @@ private:
 			const tbool bIsOrientationPreserving, const int iFace, const int iVert);
 
 	void _update_shape();
+	void _update_collision_faces();
+	bool _is_debug_collision_shape_visible();
+	void _update_debug_collision_shape();
+	void _clear_debug_collision_shape();
+	void _on_transform_changed();
 
 protected:
 	void _notification(int p_what);
 	virtual CSGBrush *_build_brush() = 0;
-	void _make_dirty();
+	void _make_dirty(bool p_parent_removing = false);
 
 	static void _bind_methods();
 
 	friend class CSGCombiner3D;
 	CSGBrush *_get_brush();
 
-	virtual void _validate_property(PropertyInfo &property) const override;
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	Array get_meshes() const;
@@ -126,7 +135,6 @@ public:
 	virtual Vector<Vector3> get_brush_faces();
 
 	virtual AABB get_aabb() const override;
-	virtual Vector<Face3> get_faces(uint32_t p_usage_flags) const override;
 
 	void set_use_collision(bool p_enable);
 	bool is_using_collision() const;
@@ -142,6 +150,9 @@ public:
 
 	void set_collision_mask_value(int p_layer_number, bool p_value);
 	bool get_collision_mask_value(int p_layer_number) const;
+
+	void set_collision_priority(real_t p_priority);
+	real_t get_collision_priority() const;
 
 	void set_snap(float p_snap);
 	float get_snap() const;
@@ -170,13 +181,13 @@ class CSGPrimitive3D : public CSGShape3D {
 	GDCLASS(CSGPrimitive3D, CSGShape3D);
 
 protected:
-	bool invert_faces;
+	bool flip_faces;
 	CSGBrush *_create_brush_from_arrays(const Vector<Vector3> &p_vertices, const Vector<Vector2> &p_uv, const Vector<bool> &p_smooth, const Vector<Ref<Material>> &p_materials);
 	static void _bind_methods();
 
 public:
-	void set_invert_faces(bool p_invert);
-	bool is_inverting_faces();
+	void set_flip_faces(bool p_invert);
+	bool get_flip_faces();
 
 	CSGPrimitive3D();
 };
@@ -239,10 +250,14 @@ class CSGBox3D : public CSGPrimitive3D {
 	virtual CSGBrush *_build_brush() override;
 
 	Ref<Material> material;
-	Vector3 size = Vector3(2, 2, 2);
+	Vector3 size = Vector3(1, 1, 1);
 
 protected:
 	static void _bind_methods();
+#ifndef DISABLE_DEPRECATED
+	// Kept for compatibility from 3.x to 4.0.
+	bool _set(const StringName &p_name, const Variant &p_value);
+#endif
 
 public:
 	void set_size(const Vector3 &p_size);
@@ -367,7 +382,7 @@ private:
 	PathRotation path_rotation;
 	bool path_local;
 
-	Path3D *path;
+	Path3D *path = nullptr;
 
 	bool smooth_faces;
 	bool path_continuous_u;
@@ -382,7 +397,7 @@ private:
 
 protected:
 	static void _bind_methods();
-	virtual void _validate_property(PropertyInfo &property) const override;
+	void _validate_property(PropertyInfo &p_property) const;
 	void _notification(int p_what);
 
 public:

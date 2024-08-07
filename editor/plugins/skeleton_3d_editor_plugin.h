@@ -1,50 +1,54 @@
-/*************************************************************************/
-/*  skeleton_3d_editor_plugin.h                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  skeleton_3d_editor_plugin.h                                           */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef SKELETON_3D_EDITOR_PLUGIN_H
 #define SKELETON_3D_EDITOR_PLUGIN_H
 
-#include "editor/editor_node.h"
-#include "editor/editor_plugin.h"
 #include "editor/editor_properties.h"
-#include "node_3d_editor_plugin.h"
+#include "editor/gui/editor_file_dialog.h"
+#include "editor/plugins/editor_plugin.h"
+#include "editor/plugins/node_3d_editor_plugin.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/skeleton_3d.h"
 #include "scene/resources/immediate_mesh.h"
 
 class EditorInspectorPluginSkeleton;
+class EditorPropertyVector3;
 class Joint;
 class PhysicalBone3D;
 class Skeleton3DEditorPlugin;
 class Button;
+class Tree;
+class TreeItem;
+class VSeparator;
 
 class BoneTransformEditor : public VBoxContainer {
 	GDCLASS(BoneTransformEditor, VBoxContainer);
@@ -61,10 +65,8 @@ class BoneTransformEditor : public VBoxContainer {
 
 	Rect2 background_rects[5];
 
-	Skeleton3D *skeleton;
+	Skeleton3D *skeleton = nullptr;
 	// String property;
-
-	UndoRedo *undo_redo;
 
 	bool toggle_enabled = false;
 	bool updating = false;
@@ -73,7 +75,7 @@ class BoneTransformEditor : public VBoxContainer {
 
 	void create_editors();
 
-	void _value_changed(const String &p_property, Variant p_value, const String &p_name, bool p_changing);
+	void _value_changed(const String &p_property, const Variant &p_value, const String &p_name, bool p_changing);
 
 	void _property_keyed(const String &p_path, bool p_advance);
 
@@ -97,11 +99,12 @@ class Skeleton3DEditor : public VBoxContainer {
 	friend class Skeleton3DEditorPlugin;
 
 	enum SkeletonOption {
-		SKELETON_OPTION_INIT_ALL_POSES,
-		SKELETON_OPTION_INIT_SELECTED_POSES,
+		SKELETON_OPTION_RESET_ALL_POSES,
+		SKELETON_OPTION_RESET_SELECTED_POSES,
 		SKELETON_OPTION_ALL_POSES_TO_RESTS,
 		SKELETON_OPTION_SELECTED_POSES_TO_RESTS,
 		SKELETON_OPTION_CREATE_PHYSICAL_SKELETON,
+		SKELETON_OPTION_EXPORT_SKELETON_PROFILE,
 	};
 
 	struct BoneInfo {
@@ -109,31 +112,32 @@ class Skeleton3DEditor : public VBoxContainer {
 		Transform3D relative_rest; // Relative to skeleton node.
 	};
 
-	EditorNode *editor;
-	EditorInspectorPluginSkeleton *editor_plugin;
+	EditorInspectorPluginSkeleton *editor_plugin = nullptr;
 
-	Skeleton3D *skeleton;
+	Skeleton3D *skeleton = nullptr;
 
 	Tree *joint_tree = nullptr;
 	BoneTransformEditor *rest_editor = nullptr;
 	BoneTransformEditor *pose_editor = nullptr;
 
-	VSeparator *separator;
+	HBoxContainer *topmenu_bar = nullptr;
 	MenuButton *skeleton_options = nullptr;
-	Button *edit_mode_button;
+	Button *edit_mode_button = nullptr;
 
 	bool edit_mode = false;
 
-	HBoxContainer *animation_hb;
-	Button *key_loc_button;
-	Button *key_rot_button;
-	Button *key_scale_button;
-	Button *key_insert_button;
-	Button *key_insert_all_button;
+	HBoxContainer *animation_hb = nullptr;
+	Button *key_loc_button = nullptr;
+	Button *key_rot_button = nullptr;
+	Button *key_scale_button = nullptr;
+	Button *key_insert_button = nullptr;
+	Button *key_insert_all_button = nullptr;
+
+	EditorInspectorSection *bones_section = nullptr;
 
 	EditorFileDialog *file_dialog = nullptr;
 
-	bool keyable;
+	bool keyable = false;
 
 	static Skeleton3DEditor *singleton;
 
@@ -145,17 +149,18 @@ class Skeleton3DEditor : public VBoxContainer {
 	EditorFileDialog *file_export_lib = nullptr;
 
 	void update_joint_tree();
-	void update_editors();
 
 	void create_editors();
 
-	void init_pose(const bool p_all_bones);
+	void reset_pose(const bool p_all_bones);
 	void pose_to_rest(const bool p_all_bones);
 
 	void insert_keys(const bool p_all_bones);
 
 	void create_physical_skeleton();
 	PhysicalBone3D *create_physical_bone(int bone_id, int bone_child_id, const Vector<BoneInfo> &bones_infos);
+
+	void export_skeleton_profile();
 
 	Variant get_drag_data_fw(const Point2 &p_point, Control *p_from);
 	bool can_drop_data_fw(const Point2 &p_point, const Variant &p_data, Control *p_from) const;
@@ -165,7 +170,7 @@ class Skeleton3DEditor : public VBoxContainer {
 	void set_bone_options_enabled(const bool p_bone_options_enabled);
 
 	// Handle.
-	MeshInstance3D *handles_mesh_instance;
+	MeshInstance3D *handles_mesh_instance = nullptr;
 	Ref<ImmediateMesh> handles_mesh;
 	Ref<ShaderMaterial> handle_material;
 	Ref<Shader> handle_shader;
@@ -183,7 +188,7 @@ class Skeleton3DEditor : public VBoxContainer {
 	void _draw_handles();
 
 	void _joint_tree_selection_changed();
-	void _joint_tree_rmb_select(const Vector2 &p_pos);
+	void _joint_tree_rmb_select(const Vector2 &p_pos, MouseButton p_button);
 	void _update_properties();
 
 	void _subgizmo_selection_change();
@@ -193,7 +198,6 @@ class Skeleton3DEditor : public VBoxContainer {
 protected:
 	void _notification(int p_what);
 	void _node_removed(Node *p_node);
-	static void _bind_methods();
 
 public:
 	static Skeleton3DEditor *get_singleton() { return singleton; }
@@ -213,7 +217,7 @@ public:
 	Quaternion get_bone_original_rotation() const { return bone_original_rotation; };
 	Vector3 get_bone_original_scale() const { return bone_original_scale; };
 
-	Skeleton3DEditor(EditorInspectorPluginSkeleton *e_plugin, EditorNode *p_editor, Skeleton3D *skeleton);
+	Skeleton3DEditor(EditorInspectorPluginSkeleton *e_plugin, Skeleton3D *skeleton);
 	~Skeleton3DEditor();
 };
 
@@ -222,8 +226,7 @@ class EditorInspectorPluginSkeleton : public EditorInspectorPlugin {
 
 	friend class Skeleton3DEditorPlugin;
 
-	Skeleton3DEditor *skel_editor;
-	EditorNode *editor;
+	Skeleton3DEditor *skel_editor = nullptr;
 
 public:
 	virtual bool can_handle(Object *p_object) override;
@@ -233,18 +236,17 @@ public:
 class Skeleton3DEditorPlugin : public EditorPlugin {
 	GDCLASS(Skeleton3DEditorPlugin, EditorPlugin);
 
-	EditorInspectorPluginSkeleton *skeleton_plugin;
-	EditorNode *editor;
+	EditorInspectorPluginSkeleton *skeleton_plugin = nullptr;
 
 public:
-	virtual EditorPlugin::AfterGUIInput forward_spatial_gui_input(Camera3D *p_camera, const Ref<InputEvent> &p_event) override;
+	virtual EditorPlugin::AfterGUIInput forward_3d_gui_input(Camera3D *p_camera, const Ref<InputEvent> &p_event) override;
 
 	bool has_main_screen() const override { return false; }
 	virtual bool handles(Object *p_object) const override;
 
 	virtual String get_name() const override { return "Skeleton3D"; }
 
-	Skeleton3DEditorPlugin(EditorNode *p_node);
+	Skeleton3DEditorPlugin();
 };
 
 class Skeleton3DGizmoPlugin : public EditorNode3DGizmoPlugin {

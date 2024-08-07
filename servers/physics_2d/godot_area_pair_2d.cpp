@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_area_pair_2d.cpp                                               */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_area_pair_2d.cpp                                                */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "godot_area_pair_2d.h"
 #include "godot_collision_solver_2d.h"
@@ -66,6 +66,7 @@ bool GodotAreaPair2D::pre_solve(real_t p_step) {
 
 	if (colliding) {
 		if (has_space_override) {
+			body_has_attached_area = true;
 			body->add_area(area);
 		}
 
@@ -74,6 +75,7 @@ bool GodotAreaPair2D::pre_solve(real_t p_step) {
 		}
 	} else {
 		if (has_space_override) {
+			body_has_attached_area = false;
 			body->remove_area(area);
 		}
 
@@ -103,7 +105,8 @@ GodotAreaPair2D::GodotAreaPair2D(GodotBody2D *p_body, int p_body_shape, GodotAre
 
 GodotAreaPair2D::~GodotAreaPair2D() {
 	if (colliding) {
-		if (has_space_override) {
+		if (body_has_attached_area) {
+			body_has_attached_area = false;
 			body->remove_area(area);
 		}
 		if (area->has_monitor_callback()) {
@@ -128,7 +131,7 @@ bool GodotArea2Pair2D::setup(real_t p_step) {
 
 	process_collision_a = false;
 	if (result_a != colliding_a) {
-		if (area_a->has_area_monitor_callback() && area_b->is_monitorable()) {
+		if (area_a->has_area_monitor_callback() && area_b_monitorable) {
 			process_collision_a = true;
 			process_collision = true;
 		}
@@ -137,7 +140,7 @@ bool GodotArea2Pair2D::setup(real_t p_step) {
 
 	process_collision_b = false;
 	if (result_b != colliding_b) {
-		if (area_b->has_area_monitor_callback() && area_a->is_monitorable()) {
+		if (area_b->has_area_monitor_callback() && area_a_monitorable) {
 			process_collision_b = true;
 			process_collision = true;
 		}
@@ -176,19 +179,21 @@ GodotArea2Pair2D::GodotArea2Pair2D(GodotArea2D *p_area_a, int p_shape_a, GodotAr
 	area_b = p_area_b;
 	shape_a = p_shape_a;
 	shape_b = p_shape_b;
+	area_a_monitorable = area_a->is_monitorable();
+	area_b_monitorable = area_b->is_monitorable();
 	area_a->add_constraint(this);
 	area_b->add_constraint(this);
 }
 
 GodotArea2Pair2D::~GodotArea2Pair2D() {
 	if (colliding_a) {
-		if (area_a->has_area_monitor_callback()) {
+		if (area_a->has_area_monitor_callback() && area_b_monitorable) {
 			area_a->remove_area_from_query(area_b, shape_b, shape_a);
 		}
 	}
 
 	if (colliding_b) {
-		if (area_b->has_area_monitor_callback()) {
+		if (area_b->has_area_monitor_callback() && area_a_monitorable) {
 			area_b->remove_area_from_query(area_a, shape_a, shape_b);
 		}
 	}

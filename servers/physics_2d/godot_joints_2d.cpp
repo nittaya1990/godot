@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_joints_2d.cpp                                                  */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_joints_2d.cpp                                                   */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "godot_joints_2d.h"
 
@@ -105,7 +105,7 @@ bool GodotPinJoint2D::setup(real_t p_step) {
 	}
 
 	GodotSpace2D *space = A->get_space();
-	ERR_FAIL_COND_V(!space, false);
+	ERR_FAIL_NULL_V(space, false);
 
 	rA = A->get_transform().basis_xform(anchor_A);
 	rB = B ? B->get_transform().basis_xform(anchor_B) : anchor_B;
@@ -118,22 +118,26 @@ bool GodotPinJoint2D::setup(real_t p_step) {
 	K1[0].y = 0.0f;
 	K1[1].y = A->get_inv_mass() + B_inv_mass;
 
+	Vector2 r1 = rA - A->get_center_of_mass();
+
 	Transform2D K2;
-	K2[0].x = A->get_inv_inertia() * rA.y * rA.y;
-	K2[1].x = -A->get_inv_inertia() * rA.x * rA.y;
-	K2[0].y = -A->get_inv_inertia() * rA.x * rA.y;
-	K2[1].y = A->get_inv_inertia() * rA.x * rA.x;
+	K2[0].x = A->get_inv_inertia() * r1.y * r1.y;
+	K2[1].x = -A->get_inv_inertia() * r1.x * r1.y;
+	K2[0].y = -A->get_inv_inertia() * r1.x * r1.y;
+	K2[1].y = A->get_inv_inertia() * r1.x * r1.x;
 
 	Transform2D K;
 	K[0] = K1[0] + K2[0];
 	K[1] = K1[1] + K2[1];
 
 	if (B) {
+		Vector2 r2 = rB - B->get_center_of_mass();
+
 		Transform2D K3;
-		K3[0].x = B->get_inv_inertia() * rB.y * rB.y;
-		K3[1].x = -B->get_inv_inertia() * rB.x * rB.y;
-		K3[0].y = -B->get_inv_inertia() * rB.x * rB.y;
-		K3[1].y = B->get_inv_inertia() * rB.x * rB.x;
+		K3[0].x = B->get_inv_inertia() * r2.y * r2.y;
+		K3[1].x = -B->get_inv_inertia() * r2.x * r2.y;
+		K3[0].y = -B->get_inv_inertia() * r2.x * r2.y;
+		K3[1].y = B->get_inv_inertia() * r2.x * r2.x;
 
 		K[0] += K3[0];
 		K[1] += K3[1];
@@ -151,6 +155,9 @@ bool GodotPinJoint2D::setup(real_t p_step) {
 
 	bias = delta * -(get_bias() == 0 ? space->get_constraint_bias() : get_bias()) * (1.0 / p_step);
 
+	// Compute max impulse.
+	jn_max = get_max_force() * p_step;
+
 	return true;
 }
 
@@ -166,12 +173,41 @@ bool GodotPinJoint2D::pre_solve(real_t p_step) {
 	if (B && dynamic_B) {
 		B->apply_impulse(P, rB);
 	}
+	// Angle limits joint pre_solve step taken from https://github.com/slembcke/Chipmunk2D/blob/d0239ef4599b3688a5a336373f7d0a68426414ba/src/cpRotaryLimitJoint.c
+	real_t i_sum_local = A->get_inv_inertia();
+	if (B) {
+		i_sum_local += B->get_inv_inertia();
+	}
+	i_sum = 1.0 / (i_sum_local);
+	if (angular_limit_enabled && B) {
+		Vector2 diff_vector = B->get_transform().get_origin() - A->get_transform().get_origin();
+		diff_vector = diff_vector.rotated(-initial_angle);
+		real_t dist = diff_vector.angle();
+		real_t pdist = 0.0;
+		if (dist > angular_limit_upper) {
+			pdist = dist - angular_limit_upper;
+		} else if (dist < angular_limit_lower) {
+			pdist = dist - angular_limit_lower;
+		}
+		real_t error_bias = Math::pow(1.0 - 0.15, 60.0);
+		// Calculate bias velocity.
+		bias_velocity = -CLAMP((-1.0 - Math::pow(error_bias, p_step)) * pdist / p_step, -get_max_bias(), get_max_bias());
+		// If the bias velocity is 0, the joint is not at a limit.
+		if (bias_velocity >= -CMP_EPSILON && bias_velocity <= CMP_EPSILON) {
+			j_acc = 0;
+			is_joint_at_limit = false;
+		} else {
+			is_joint_at_limit = true;
+		}
+	} else {
+		bias_velocity = 0.0;
+	}
 
 	return true;
 }
 
 void GodotPinJoint2D::solve(real_t p_step) {
-	// compute relative velocity
+	// Compute relative velocity.
 	Vector2 vA = A->get_linear_velocity() - custom_cross(rA - A->get_center_of_mass(), A->get_angular_velocity());
 
 	Vector2 rel_vel;
@@ -179,6 +215,33 @@ void GodotPinJoint2D::solve(real_t p_step) {
 		rel_vel = B->get_linear_velocity() - custom_cross(rB - B->get_center_of_mass(), B->get_angular_velocity()) - vA;
 	} else {
 		rel_vel = -vA;
+	}
+	// Angle limits joint solve step taken from https://github.com/slembcke/Chipmunk2D/blob/d0239ef4599b3688a5a336373f7d0a68426414ba/src/cpRotaryLimitJoint.c
+	if ((angular_limit_enabled || motor_enabled) && B) {
+		// Compute relative rotational velocity.
+		real_t wr = B->get_angular_velocity() - A->get_angular_velocity();
+		// Motor solve part taken from https://github.com/slembcke/Chipmunk2D/blob/d0239ef4599b3688a5a336373f7d0a68426414ba/src/cpSimpleMotor.c
+		if (motor_enabled) {
+			wr -= motor_target_velocity;
+		}
+		real_t j_max = jn_max;
+
+		// Compute normal impulse.
+		real_t j = -(bias_velocity + wr) * i_sum;
+		real_t j_old = j_acc;
+		// Only enable the limits if we have to.
+		if (angular_limit_enabled && is_joint_at_limit) {
+			if (bias_velocity < 0.0) {
+				j_acc = CLAMP(j_old + j, 0.0, j_max);
+			} else {
+				j_acc = CLAMP(j_old + j, -j_max, 0.0);
+			}
+		} else {
+			j_acc = CLAMP(j_old + j, -j_max, j_max);
+		}
+		j = j_acc - j_old;
+		A->apply_torque_impulse(-j * A->get_inv_inertia());
+		B->apply_torque_impulse(j * B->get_inv_inertia());
 	}
 
 	Vector2 impulse = M.basis_xform(bias - rel_vel - Vector2(softness, softness) * P);
@@ -194,14 +257,59 @@ void GodotPinJoint2D::solve(real_t p_step) {
 }
 
 void GodotPinJoint2D::set_param(PhysicsServer2D::PinJointParam p_param, real_t p_value) {
-	if (p_param == PhysicsServer2D::PIN_JOINT_SOFTNESS) {
-		softness = p_value;
+	switch (p_param) {
+		case PhysicsServer2D::PIN_JOINT_SOFTNESS: {
+			softness = p_value;
+		} break;
+		case PhysicsServer2D::PIN_JOINT_LIMIT_UPPER: {
+			angular_limit_upper = p_value;
+		} break;
+		case PhysicsServer2D::PIN_JOINT_LIMIT_LOWER: {
+			angular_limit_lower = p_value;
+		} break;
+		case PhysicsServer2D::PIN_JOINT_MOTOR_TARGET_VELOCITY: {
+			motor_target_velocity = p_value;
+		} break;
 	}
 }
 
 real_t GodotPinJoint2D::get_param(PhysicsServer2D::PinJointParam p_param) const {
-	if (p_param == PhysicsServer2D::PIN_JOINT_SOFTNESS) {
-		return softness;
+	switch (p_param) {
+		case PhysicsServer2D::PIN_JOINT_SOFTNESS: {
+			return softness;
+		}
+		case PhysicsServer2D::PIN_JOINT_LIMIT_UPPER: {
+			return angular_limit_upper;
+		}
+		case PhysicsServer2D::PIN_JOINT_LIMIT_LOWER: {
+			return angular_limit_lower;
+		}
+		case PhysicsServer2D::PIN_JOINT_MOTOR_TARGET_VELOCITY: {
+			return motor_target_velocity;
+		}
+	}
+	ERR_FAIL_V(0);
+}
+
+void GodotPinJoint2D::set_flag(PhysicsServer2D::PinJointFlag p_flag, bool p_enabled) {
+	switch (p_flag) {
+		case PhysicsServer2D::PIN_JOINT_FLAG_ANGULAR_LIMIT_ENABLED: {
+			angular_limit_enabled = p_enabled;
+		} break;
+		case PhysicsServer2D::PIN_JOINT_FLAG_MOTOR_ENABLED: {
+			motor_enabled = p_enabled;
+		} break;
+	}
+}
+
+bool GodotPinJoint2D::get_flag(PhysicsServer2D::PinJointFlag p_flag) const {
+	switch (p_flag) {
+		case PhysicsServer2D::PIN_JOINT_FLAG_ANGULAR_LIMIT_ENABLED: {
+			return angular_limit_enabled;
+		}
+		case PhysicsServer2D::PIN_JOINT_FLAG_MOTOR_ENABLED: {
+			return motor_enabled;
+		}
 	}
 	ERR_FAIL_V(0);
 }
@@ -216,6 +324,7 @@ GodotPinJoint2D::GodotPinJoint2D(const Vector2 &p_pos, GodotBody2D *p_body_a, Go
 	p_body_a->add_constraint(this, 0);
 	if (p_body_b) {
 		p_body_b->add_constraint(this, 1);
+		initial_angle = A->get_transform().get_origin().angle_to_point(B->get_transform().get_origin());
 	}
 }
 
@@ -282,7 +391,7 @@ bool GodotGrooveJoint2D::setup(real_t p_step) {
 	}
 
 	GodotSpace2D *space = A->get_space();
-	ERR_FAIL_COND_V(!space, false);
+	ERR_FAIL_NULL_V(space, false);
 
 	// calculate endpoints in worldspace
 	Vector2 ta = A->get_transform().xform(A_groove_1);
@@ -432,13 +541,13 @@ void GodotDampedSpringJoint2D::solve(real_t p_step) {
 	// not 100% certain this is derived correctly, though it makes sense
 	real_t v_damp = -vrn * v_coef;
 	target_vrn = vrn + v_damp;
-	Vector2 j = n * v_damp * n_mass;
+	Vector2 j_new = n * v_damp * n_mass;
 
 	if (dynamic_A) {
-		A->apply_impulse(-j, rA);
+		A->apply_impulse(-j_new, rA);
 	}
 	if (dynamic_B) {
-		B->apply_impulse(j, rB);
+		B->apply_impulse(j_new, rB);
 	}
 }
 

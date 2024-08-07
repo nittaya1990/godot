@@ -1,45 +1,47 @@
-/*************************************************************************/
-/*  resource_uid.cpp                                                     */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  resource_uid.cpp                                                      */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "resource_uid.h"
 
 #include "core/config/project_settings.h"
-#include "core/crypto/crypto.h"
+#include "core/crypto/crypto_core.h"
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 
+// These constants are off by 1, causing the 'z' and '9' characters never to be used.
+// This cannot be fixed without breaking compatibility; see GH-83843.
 static constexpr uint32_t char_count = ('z' - 'a');
 static constexpr uint32_t base = char_count + ('9' - '0');
 
 String ResourceUID::get_cache_file() {
-	return ProjectSettings::get_singleton()->get_project_data_path().plus_file("uid_cache.bin");
+	return ProjectSettings::get_singleton()->get_project_data_path().path_join("uid_cache.bin");
 }
 
 String ResourceUID::id_to_text(ID p_id) const {
@@ -71,9 +73,9 @@ ResourceUID::ID ResourceUID::text_to_id(const String &p_text) const {
 	for (uint32_t i = 6; i < l; i++) {
 		uid *= base;
 		uint32_t c = p_text[i];
-		if (c >= 'a' && c <= 'z') {
+		if (is_ascii_lower_case(c)) {
 			uid += c - 'a';
-		} else if (c >= '0' && c <= '9') {
+		} else if (is_digit(c)) {
 			uid += c - '0' + char_count;
 		} else {
 			return INVALID_ID;
@@ -82,20 +84,14 @@ ResourceUID::ID ResourceUID::text_to_id(const String &p_text) const {
 	return ID(uid & 0x7FFFFFFFFFFFFFFF);
 }
 
-ResourceUID::ID ResourceUID::create_id() const {
-	mutex.lock();
-	if (crypto.is_null()) {
-		crypto = Ref<Crypto>(Crypto::create());
-	}
-	mutex.unlock();
+ResourceUID::ID ResourceUID::create_id() {
 	while (true) {
-		PackedByteArray bytes = crypto->generate_random_bytes(8);
-		ERR_FAIL_COND_V(bytes.size() != 8, INVALID_ID);
-		const uint64_t *ptr64 = (const uint64_t *)bytes.ptr();
-		ID id = int64_t((*ptr64) & 0x7FFFFFFFFFFFFFFF);
-		mutex.lock();
+		ID id = INVALID_ID;
+		MutexLock lock(mutex);
+		Error err = ((CryptoCore::RandomGenerator *)crypto)->get_random_bytes((uint8_t *)&id, sizeof(id));
+		ERR_FAIL_COND_V(err != OK, INVALID_ID);
+		id &= 0x7FFFFFFFFFFFFFFF;
 		bool exists = unique_ids.has(id);
-		mutex.unlock();
 		if (!exists) {
 			return id;
 		}
@@ -119,7 +115,12 @@ void ResourceUID::set_id(ID p_id, const String &p_path) {
 	MutexLock l(mutex);
 	ERR_FAIL_COND(!unique_ids.has(p_id));
 	CharString cs = p_path.utf8();
-	if (strcmp(cs.ptr(), unique_ids[p_id].cs.ptr()) != 0) {
+	const char *update_ptr = cs.ptr();
+	const char *cached_ptr = unique_ids[p_id].cs.ptr();
+	if (update_ptr == nullptr && cached_ptr == nullptr) {
+		return; // Both are empty strings.
+	}
+	if ((update_ptr == nullptr) != (cached_ptr == nullptr) || strcmp(update_ptr, cached_ptr) != 0) {
 		unique_ids[p_id].cs = cs;
 		unique_ids[p_id].saved_to_cache = false; //changed
 		changed = true;
@@ -141,12 +142,12 @@ void ResourceUID::remove_id(ID p_id) {
 Error ResourceUID::save_to_cache() {
 	String cache_file = get_cache_file();
 	if (!FileAccess::exists(cache_file)) {
-		DirAccessRef d = DirAccess::create(DirAccess::ACCESS_RESOURCES);
+		Ref<DirAccess> d = DirAccess::create(DirAccess::ACCESS_RESOURCES);
 		d->make_dir_recursive(String(cache_file).get_base_dir()); //ensure base dir exists
 	}
 
-	FileAccessRef f = FileAccess::open(cache_file, FileAccess::WRITE);
-	if (!f) {
+	Ref<FileAccess> f = FileAccess::open(cache_file, FileAccess::WRITE);
+	if (f.is_null()) {
 		return ERR_CANT_OPEN;
 	}
 
@@ -155,12 +156,12 @@ Error ResourceUID::save_to_cache() {
 
 	cache_entries = 0;
 
-	for (OrderedHashMap<ID, Cache>::Element E = unique_ids.front(); E; E = E.next()) {
-		f->store_64(E.key());
-		uint32_t s = E.get().cs.length();
+	for (KeyValue<ID, Cache> &E : unique_ids) {
+		f->store_64(E.key);
+		uint32_t s = E.value.cs.length();
 		f->store_32(s);
-		f->store_buffer((const uint8_t *)E.get().cs.ptr(), s);
-		E.get().saved_to_cache = true;
+		f->store_buffer((const uint8_t *)E.value.cs.ptr(), s);
+		E.value.saved_to_cache = true;
 		cache_entries++;
 	}
 
@@ -168,14 +169,16 @@ Error ResourceUID::save_to_cache() {
 	return OK;
 }
 
-Error ResourceUID::load_from_cache() {
-	FileAccessRef f = FileAccess::open(get_cache_file(), FileAccess::READ);
-	if (!f) {
+Error ResourceUID::load_from_cache(bool p_reset) {
+	Ref<FileAccess> f = FileAccess::open(get_cache_file(), FileAccess::READ);
+	if (f.is_null()) {
 		return ERR_CANT_OPEN;
 	}
 
 	MutexLock l(mutex);
-	unique_ids.clear();
+	if (p_reset) {
+		unique_ids.clear();
+	}
 
 	uint32_t entry_count = f->get_32();
 	for (uint32_t i = 0; i < entry_count; i++) {
@@ -207,30 +210,28 @@ Error ResourceUID::update_cache() {
 	}
 	MutexLock l(mutex);
 
-	FileAccess *f = nullptr;
-	for (OrderedHashMap<ID, Cache>::Element E = unique_ids.front(); E; E = E.next()) {
-		if (!E.get().saved_to_cache) {
-			if (f == nullptr) {
+	Ref<FileAccess> f;
+	for (KeyValue<ID, Cache> &E : unique_ids) {
+		if (!E.value.saved_to_cache) {
+			if (f.is_null()) {
 				f = FileAccess::open(get_cache_file(), FileAccess::READ_WRITE); //append
-				if (!f) {
+				if (f.is_null()) {
 					return ERR_CANT_OPEN;
 				}
 				f->seek_end();
 			}
-			f->store_64(E.key());
-			uint32_t s = E.get().cs.length();
+			f->store_64(E.key);
+			uint32_t s = E.value.cs.length();
 			f->store_32(s);
-			f->store_buffer((const uint8_t *)E.get().cs.ptr(), s);
-			E.get().saved_to_cache = true;
+			f->store_buffer((const uint8_t *)E.value.cs.ptr(), s);
+			E.value.saved_to_cache = true;
 			cache_entries++;
 		}
 	}
 
-	if (f != nullptr) {
+	if (f.is_valid()) {
 		f->seek(0);
 		f->store_32(cache_entries); //update amount of entries
-		f->close();
-		memdelete(f);
 	}
 
 	changed = false;
@@ -261,6 +262,9 @@ ResourceUID *ResourceUID::singleton = nullptr;
 ResourceUID::ResourceUID() {
 	ERR_FAIL_COND(singleton != nullptr);
 	singleton = this;
+	crypto = memnew(CryptoCore::RandomGenerator);
+	((CryptoCore::RandomGenerator *)crypto)->init();
 }
 ResourceUID::~ResourceUID() {
+	memdelete((CryptoCore::RandomGenerator *)crypto);
 }

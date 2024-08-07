@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  mobile_vr_interface.cpp                                              */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  mobile_vr_interface.cpp                                               */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "mobile_vr_interface.h"
 
@@ -45,7 +45,7 @@ uint32_t MobileVRInterface::get_capabilities() const {
 
 Vector3 MobileVRInterface::scale_magneto(const Vector3 &p_magnetometer) {
 	// Our magnetometer doesn't give us nice clean data.
-	// Well it may on Mac OS X because we're getting a calibrated value in the current implementation but Android we're getting raw data.
+	// Well it may on macOS because we're getting a calibrated value in the current implementation but Android we're getting raw data.
 	// This is a fairly simple adjustment we can do to correct for the magnetometer data being elliptical
 
 	Vector3 mag_raw = p_magnetometer;
@@ -112,9 +112,9 @@ Basis MobileVRInterface::combine_acc_mag(const Vector3 &p_grav, const Vector3 &p
 
 	// We use our gravity and magnetometer vectors to construct our matrix
 	Basis acc_mag_m3;
-	acc_mag_m3.elements[0] = -magneto_east;
-	acc_mag_m3.elements[1] = up;
-	acc_mag_m3.elements[2] = magneto;
+	acc_mag_m3.rows[0] = -magneto_east;
+	acc_mag_m3.rows[1] = up;
+	acc_mag_m3.rows[2] = magneto;
 
 	return acc_mag_m3;
 };
@@ -126,7 +126,7 @@ void MobileVRInterface::set_position_from_sensors() {
 	// 9dof is a misleading marketing term coming from 3 accelerometer axis + 3 gyro axis + 3 magnetometer axis = 9 axis
 	// but in reality this only offers 3 dof (yaw, pitch, roll) orientation
 
-	Basis orientation;
+	Basis orientation = head_transform.basis;
 
 	uint64_t ticks = OS::get_singleton()->get_ticks_usec();
 	uint64_t ticks_elapsed = ticks - last_ticks;
@@ -155,7 +155,7 @@ void MobileVRInterface::set_position_from_sensors() {
 	last_magnetometer_data = magneto;
 
 	if (grav.length() < 0.1) {
-		// not ideal but use our accelerometer, this will contain shaky user behaviour
+		// not ideal but use our accelerometer, this will contain shaky user behavior
 		// maybe look into some math but I'm guessing that if this isn't available, it's because we lack the gyro sensor to actually work out
 		// what a stable gravity vector is
 		grav = acc;
@@ -175,12 +175,13 @@ void MobileVRInterface::set_position_from_sensors() {
 	if (has_gyro) {
 		// start with applying our gyro (do NOT smooth our gyro!)
 		Basis rotate;
-		rotate.rotate(orientation.get_axis(0), gyro.x * delta_time);
-		rotate.rotate(orientation.get_axis(1), gyro.y * delta_time);
-		rotate.rotate(orientation.get_axis(2), gyro.z * delta_time);
+		rotate.rotate(orientation.get_column(0), gyro.x * delta_time);
+		rotate.rotate(orientation.get_column(1), gyro.y * delta_time);
+		rotate.rotate(orientation.get_column(2), gyro.z * delta_time);
 		orientation = rotate * orientation;
 
 		tracking_state = XRInterface::XR_NORMAL_TRACKING;
+		tracking_confidence = XRPose::XR_TRACKING_CONFIDENCE_HIGH;
 	};
 
 	///@TODO improve this, the magnetometer is very fidgety sometimes flipping the axis for no apparent reason (probably a bug on my part)
@@ -193,6 +194,7 @@ void MobileVRInterface::set_position_from_sensors() {
 		orientation = Basis(transform_quat);
 
 		tracking_state = XRInterface::XR_NORMAL_TRACKING;
+		tracking_confidence = XRPose::XR_TRACKING_CONFIDENCE_HIGH;
 	} else if (has_grav) {
 		// use gravity vector to make sure down is down...
 		// transform gravity into our world space
@@ -228,6 +230,9 @@ void MobileVRInterface::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_display_to_lens", "display_to_lens"), &MobileVRInterface::set_display_to_lens);
 	ClassDB::bind_method(D_METHOD("get_display_to_lens"), &MobileVRInterface::get_display_to_lens);
 
+	ClassDB::bind_method(D_METHOD("set_offset_rect", "offset_rect"), &MobileVRInterface::set_offset_rect);
+	ClassDB::bind_method(D_METHOD("get_offset_rect"), &MobileVRInterface::get_offset_rect);
+
 	ClassDB::bind_method(D_METHOD("set_oversample", "oversample"), &MobileVRInterface::set_oversample);
 	ClassDB::bind_method(D_METHOD("get_oversample"), &MobileVRInterface::get_oversample);
 
@@ -241,9 +246,20 @@ void MobileVRInterface::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "iod", PROPERTY_HINT_RANGE, "4.0,10.0,0.1"), "set_iod", "get_iod");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "display_width", PROPERTY_HINT_RANGE, "5.0,25.0,0.1"), "set_display_width", "get_display_width");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "display_to_lens", PROPERTY_HINT_RANGE, "5.0,25.0,0.1"), "set_display_to_lens", "get_display_to_lens");
+	ADD_PROPERTY(PropertyInfo(Variant::RECT2, "offset_rect"), "set_offset_rect", "get_offset_rect");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "oversample", PROPERTY_HINT_RANGE, "1.0,2.0,0.1"), "set_oversample", "get_oversample");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "k1", PROPERTY_HINT_RANGE, "0.1,10.0,0.0001"), "set_k1", "get_k1");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "k2", PROPERTY_HINT_RANGE, "0.1,10.0,0.0001"), "set_k2", "get_k2");
+
+	ClassDB::bind_method(D_METHOD("get_vrs_min_radius"), &MobileVRInterface::get_vrs_min_radius);
+	ClassDB::bind_method(D_METHOD("set_vrs_min_radius", "radius"), &MobileVRInterface::set_vrs_min_radius);
+
+	ClassDB::bind_method(D_METHOD("get_vrs_strength"), &MobileVRInterface::get_vrs_strength);
+	ClassDB::bind_method(D_METHOD("set_vrs_strength", "strength"), &MobileVRInterface::set_vrs_strength);
+
+	ADD_GROUP("Vulkan VRS", "vrs_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "vrs_min_radius", PROPERTY_HINT_RANGE, "1.0,100.0,1.0"), "set_vrs_min_radius", "get_vrs_min_radius");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "vrs_strength", PROPERTY_HINT_RANGE, "0.1,10.0,0.1"), "set_vrs_strength", "get_vrs_strength");
 }
 
 void MobileVRInterface::set_eye_height(const double p_eye_height) {
@@ -252,6 +268,14 @@ void MobileVRInterface::set_eye_height(const double p_eye_height) {
 
 double MobileVRInterface::get_eye_height() const {
 	return eye_height;
+}
+
+void MobileVRInterface::set_offset_rect(const Rect2 &p_offset_rect) {
+	offset_rect = p_offset_rect;
+}
+
+Rect2 MobileVRInterface::get_offset_rect() const {
+	return offset_rect;
 }
 
 void MobileVRInterface::set_iod(const double p_iod) {
@@ -301,6 +325,22 @@ void MobileVRInterface::set_k2(const double p_k2) {
 double MobileVRInterface::get_k2() const {
 	return k2;
 };
+
+float MobileVRInterface::get_vrs_min_radius() const {
+	return xr_vrs.get_vrs_min_radius();
+}
+
+void MobileVRInterface::set_vrs_min_radius(float p_vrs_min_radius) {
+	xr_vrs.set_vrs_min_radius(p_vrs_min_radius);
+}
+
+float MobileVRInterface::get_vrs_strength() const {
+	return xr_vrs.get_vrs_strength();
+}
+
+void MobileVRInterface::set_vrs_strength(float p_vrs_strength) {
+	xr_vrs.set_vrs_strength(p_vrs_strength);
+}
 
 uint32_t MobileVRInterface::get_view_count() {
 	// needs stereo...
@@ -369,6 +409,15 @@ void MobileVRInterface::uninitialize() {
 		initialized = false;
 	};
 };
+
+Dictionary MobileVRInterface::get_system_info() {
+	Dictionary dict;
+
+	dict[SNAME("XRRuntimeName")] = String("Godot mobile VR interface");
+	dict[SNAME("XRRuntimeVersion")] = String("");
+
+	return dict;
+}
 
 bool MobileVRInterface::supports_play_area_mode(XRInterface::PlayAreaMode p_mode) {
 	// This interface has no positional tracking so fix this to 3DOF
@@ -450,10 +499,10 @@ Transform3D MobileVRInterface::get_transform_for_view(uint32_t p_view, const Tra
 	return transform_for_eye;
 };
 
-CameraMatrix MobileVRInterface::get_projection_for_view(uint32_t p_view, double p_aspect, double p_z_near, double p_z_far) {
+Projection MobileVRInterface::get_projection_for_view(uint32_t p_view, double p_aspect, double p_z_near, double p_z_far) {
 	_THREAD_SAFE_METHOD_
 
-	CameraMatrix eye;
+	Projection eye;
 
 	aspect = p_aspect;
 	eye.set_for_hmd(p_view + 1, p_aspect, intraocular_dist, display_width, display_to_lens, oversample, p_z_near, p_z_far);
@@ -461,16 +510,23 @@ CameraMatrix MobileVRInterface::get_projection_for_view(uint32_t p_view, double 
 	return eye;
 };
 
-Vector<BlitToScreen> MobileVRInterface::commit_views(RID p_render_target, const Rect2 &p_screen_rect) {
+Vector<BlitToScreen> MobileVRInterface::post_draw_viewport(RID p_render_target, const Rect2 &p_screen_rect) {
 	_THREAD_SAFE_METHOD_
 
 	Vector<BlitToScreen> blit_to_screen;
 
-	// We must have a valid render target
+	// We must have a valid render target.
 	ERR_FAIL_COND_V(!p_render_target.is_valid(), blit_to_screen);
 
-	// Because we are rendering to our device we must use our main viewport!
-	ERR_FAIL_COND_V(p_screen_rect == Rect2(), blit_to_screen);
+	// We will only output to screen if this is our main viewport.
+	if (p_screen_rect == Rect2()) {
+		// Warn the developer once, it's up to the developer to output to screen.
+		WARN_PRINT_ONCE("SubViewport used with MobileVRInterface, no output to screen");
+
+		return blit_to_screen;
+	}
+
+	Rect2 modified_screen_rect = Rect2(p_screen_rect.position + offset_rect.position * p_screen_rect.size, p_screen_rect.size * offset_rect.size);
 
 	// and add our blits
 	BlitToScreen blit;
@@ -483,16 +539,16 @@ Vector<BlitToScreen> MobileVRInterface::commit_views(RID p_render_target, const 
 	blit.lens_distortion.aspect_ratio = aspect;
 
 	// left eye
-	blit.dst_rect = p_screen_rect;
+	blit.dst_rect = modified_screen_rect;
 	blit.dst_rect.size.width *= 0.5;
 	blit.multi_view.layer = 0;
 	blit.lens_distortion.eye_center.x = ((-intraocular_dist / 2.0) + (display_width / 4.0)) / (display_width / 2.0);
 	blit_to_screen.push_back(blit);
 
 	// right eye
-	blit.dst_rect = p_screen_rect;
+	blit.dst_rect = modified_screen_rect;
 	blit.dst_rect.size.width *= 0.5;
-	blit.dst_rect.position.x = blit.dst_rect.size.width;
+	blit.dst_rect.position.x += blit.dst_rect.size.width;
 	blit.multi_view.layer = 1;
 	blit.lens_distortion.eye_center.x = ((intraocular_dist / 2.0) - (display_width / 4.0)) / (display_width / 2.0);
 	blit_to_screen.push_back(blit);
@@ -512,10 +568,27 @@ void MobileVRInterface::process() {
 
 		if (head.is_valid()) {
 			// Set our head position, note in real space, reference frame and world scale is applied later
-			head->set_pose("default", head_transform, Vector3(), Vector3());
+			head->set_pose("default", head_transform, Vector3(), Vector3(), tracking_confidence);
 		}
 	};
 };
+
+RID MobileVRInterface::get_vrs_texture() {
+	PackedVector2Array eye_foci;
+
+	Size2 target_size = get_render_target_size();
+	real_t aspect_ratio = target_size.x / target_size.y;
+	uint32_t view_count = get_view_count();
+
+	for (uint32_t v = 0; v < view_count; v++) {
+		Projection cm = get_projection_for_view(v, aspect_ratio, 0.1, 1000.0);
+		Vector3 center = cm.xform(Vector3(0.0, 0.0, 999.0));
+
+		eye_foci.push_back(Vector2(center.x, center.y));
+	}
+
+	return xr_vrs.make_vrs_texture(target_size, eye_foci);
+}
 
 MobileVRInterface::MobileVRInterface() {}
 

@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_physics_server_3d.h                                            */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_physics_server_3d.h                                             */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef GODOT_PHYSICS_SERVER_3D_H
 #define GODOT_PHYSICS_SERVER_3D_H
@@ -44,7 +44,6 @@ class GodotPhysicsServer3D : public PhysicsServer3D {
 
 	friend class GodotPhysicsDirectSpaceState3D;
 	bool active = true;
-	int iterations = 0;
 
 	int island_count = 0;
 	int active_objects = 0;
@@ -55,7 +54,7 @@ class GodotPhysicsServer3D : public PhysicsServer3D {
 	bool flushing_queries = false;
 
 	GodotStep3D *stepper = nullptr;
-	Set<const GodotSpace3D *> active_spaces;
+	HashSet<const GodotSpace3D *> active_spaces;
 
 	mutable RID_PtrOwner<GodotShape3D, true> shape_owner;
 	mutable RID_PtrOwner<GodotSpace3D, true> space_owner;
@@ -75,10 +74,10 @@ public:
 	struct CollCbkData {
 		int max;
 		int amount;
-		Vector3 *ptr;
+		Vector3 *ptr = nullptr;
 	};
 
-	static void _shape_col_cbk(const Vector3 &p_point_A, int p_index_A, const Vector3 &p_point_B, int p_index_B, void *p_userdata);
+	static void _shape_col_cbk(const Vector3 &p_point_A, int p_index_A, const Vector3 &p_point_B, int p_index_B, const Vector3 &normal, void *p_userdata);
 
 	virtual RID world_boundary_shape_create() override;
 	virtual RID separation_ray_shape_create() override;
@@ -149,8 +148,11 @@ public:
 
 	virtual void area_set_ray_pickable(RID p_area, bool p_enable) override;
 
-	virtual void area_set_collision_mask(RID p_area, uint32_t p_mask) override;
 	virtual void area_set_collision_layer(RID p_area, uint32_t p_layer) override;
+	virtual uint32_t area_get_collision_layer(RID p_area) const override;
+
+	virtual void area_set_collision_mask(RID p_area, uint32_t p_mask) override;
+	virtual uint32_t area_get_collision_mask(RID p_area) const override;
 
 	virtual void area_set_monitorable(RID p_area, bool p_monitorable) override;
 
@@ -193,6 +195,9 @@ public:
 	virtual void body_set_collision_mask(RID p_body, uint32_t p_mask) override;
 	virtual uint32_t body_get_collision_mask(RID p_body) const override;
 
+	virtual void body_set_collision_priority(RID p_body, real_t p_priority) override;
+	virtual real_t body_get_collision_priority(RID p_body) const override;
+
 	virtual void body_set_user_flags(RID p_body, uint32_t p_flags) override;
 	virtual uint32_t body_get_user_flags(RID p_body) const override;
 
@@ -204,19 +209,24 @@ public:
 	virtual void body_set_state(RID p_body, BodyState p_state, const Variant &p_variant) override;
 	virtual Variant body_get_state(RID p_body, BodyState p_state) const override;
 
-	virtual void body_set_applied_force(RID p_body, const Vector3 &p_force) override;
-	virtual Vector3 body_get_applied_force(RID p_body) const override;
-
-	virtual void body_set_applied_torque(RID p_body, const Vector3 &p_torque) override;
-	virtual Vector3 body_get_applied_torque(RID p_body) const override;
-
-	virtual void body_add_central_force(RID p_body, const Vector3 &p_force) override;
-	virtual void body_add_force(RID p_body, const Vector3 &p_force, const Vector3 &p_position = Vector3()) override;
-	virtual void body_add_torque(RID p_body, const Vector3 &p_torque) override;
-
 	virtual void body_apply_central_impulse(RID p_body, const Vector3 &p_impulse) override;
 	virtual void body_apply_impulse(RID p_body, const Vector3 &p_impulse, const Vector3 &p_position = Vector3()) override;
 	virtual void body_apply_torque_impulse(RID p_body, const Vector3 &p_impulse) override;
+
+	virtual void body_apply_central_force(RID p_body, const Vector3 &p_force) override;
+	virtual void body_apply_force(RID p_body, const Vector3 &p_force, const Vector3 &p_position = Vector3()) override;
+	virtual void body_apply_torque(RID p_body, const Vector3 &p_torque) override;
+
+	virtual void body_add_constant_central_force(RID p_body, const Vector3 &p_force) override;
+	virtual void body_add_constant_force(RID p_body, const Vector3 &p_force, const Vector3 &p_position = Vector3()) override;
+	virtual void body_add_constant_torque(RID p_body, const Vector3 &p_torque) override;
+
+	virtual void body_set_constant_force(RID p_body, const Vector3 &p_force) override;
+	virtual Vector3 body_get_constant_force(RID p_body) const override;
+
+	virtual void body_set_constant_torque(RID p_body, const Vector3 &p_torque) override;
+	virtual Vector3 body_get_constant_torque(RID p_body) const override;
+
 	virtual void body_set_axis_velocity(RID p_body, const Vector3 &p_axis_velocity) override;
 
 	virtual void body_set_axis_lock(RID p_body, BodyAxis p_axis, bool p_lock) override;
@@ -235,7 +245,7 @@ public:
 	virtual void body_set_max_contacts_reported(RID p_body, int p_contacts) override;
 	virtual int body_get_max_contacts_reported(RID p_body) const override;
 
-	virtual void body_set_state_sync_callback(RID p_body, void *p_instance, BodyStateCallback p_callback) override;
+	virtual void body_set_state_sync_callback(RID p_body, const Callable &p_callable) override;
 	virtual void body_set_force_integration_callback(RID p_body, const Callable &p_callable, const Variant &p_udata = Variant()) override;
 
 	virtual void body_set_ray_pickable(RID p_body, bool p_enable) override;
@@ -249,7 +259,7 @@ public:
 
 	virtual RID soft_body_create() override;
 
-	virtual void soft_body_update_rendering_server(RID p_body, RenderingServerHandler *p_rendering_server_handler) override;
+	virtual void soft_body_update_rendering_server(RID p_body, PhysicsServer3DRenderingServerHandler *p_rendering_server_handler) override;
 
 	virtual void soft_body_set_space(RID p_body, RID p_space) override;
 	virtual RID soft_body_get_space(RID p_body) const override;
@@ -349,7 +359,7 @@ public:
 	virtual void joint_set_solver_priority(RID p_joint, int p_priority) override;
 	virtual int joint_get_solver_priority(RID p_joint) const override;
 
-	virtual void joint_disable_collisions_between_bodies(RID p_joint, const bool p_disable) override;
+	virtual void joint_disable_collisions_between_bodies(RID p_joint, bool p_disable) override;
 	virtual bool joint_is_disabled_collisions_between_bodies(RID p_joint) const override;
 
 	/* MISC */
@@ -363,8 +373,6 @@ public:
 	virtual void flush_queries() override;
 	virtual void end_sync() override;
 	virtual void finish() override;
-
-	virtual void set_collision_iterations(int p_iterations) override;
 
 	virtual bool is_flushing_queries() const override { return flushing_queries; }
 

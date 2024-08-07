@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_generic_6dof_joint_3d.cpp                                      */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_generic_6dof_joint_3d.cpp                                       */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 /*
 Adapted to Godot from the Bullet library.
@@ -232,7 +232,7 @@ GodotGeneric6DOFJoint3D::GodotGeneric6DOFJoint3D(GodotBody3D *rbA, GodotBody3D *
 void GodotGeneric6DOFJoint3D::calculateAngleInfo() {
 	Basis relative_frame = m_calculatedTransformB.basis.inverse() * m_calculatedTransformA.basis;
 
-	m_calculatedAxisAngleDiff = relative_frame.get_euler(Basis::EULER_ORDER_XYZ);
+	m_calculatedAxisAngleDiff = relative_frame.get_euler(EulerOrder::XYZ);
 
 	// in euler angle mode we do not actually constrain the angular velocity
 	// along the axes axis[0] and axis[2] (although we do use axis[1]) :
@@ -249,8 +249,8 @@ void GodotGeneric6DOFJoint3D::calculateAngleInfo() {
 	// easier to take the euler rate expression for d(angle[2])/dt with respect
 	// to the components of w and set that to 0.
 
-	Vector3 axis0 = m_calculatedTransformB.basis.get_axis(0);
-	Vector3 axis2 = m_calculatedTransformA.basis.get_axis(2);
+	Vector3 axis0 = m_calculatedTransformB.basis.get_column(0);
+	Vector3 axis2 = m_calculatedTransformA.basis.get_column(2);
 
 	m_calculatedAxis[1] = axis2.cross(axis0);
 	m_calculatedAxis[0] = m_calculatedAxis[1].cross(axis2);
@@ -345,9 +345,9 @@ bool GodotGeneric6DOFJoint3D::setup(real_t p_timestep) {
 	for (i = 0; i < 3; i++) {
 		if (m_linearLimits.enable_limit[i] && m_linearLimits.isLimited(i)) {
 			if (m_useLinearReferenceFrameA) {
-				normalWorld = m_calculatedTransformA.basis.get_axis(i);
+				normalWorld = m_calculatedTransformA.basis.get_column(i);
 			} else {
-				normalWorld = m_calculatedTransformB.basis.get_axis(i);
+				normalWorld = m_calculatedTransformB.basis.get_column(i);
 			}
 
 			buildLinearJacobian(
@@ -360,7 +360,7 @@ bool GodotGeneric6DOFJoint3D::setup(real_t p_timestep) {
 	for (i = 0; i < 3; i++) {
 		//calculates error angle
 		if (m_angularLimits[i].m_enableLimit && testAngularLimitMotor(i)) {
-			normalWorld = this->getAxis(i);
+			normalWorld = getAxis(i);
 			// Create angular atom
 			buildAngularJacobian(m_jacAng[i], normalWorld);
 		}
@@ -388,9 +388,9 @@ void GodotGeneric6DOFJoint3D::solve(real_t p_timestep) {
 			jacDiagABInv = real_t(1.) / m_jacLinear[i].getDiagonal();
 
 			if (m_useLinearReferenceFrameA) {
-				linear_axis = m_calculatedTransformA.basis.get_axis(i);
+				linear_axis = m_calculatedTransformA.basis.get_column(i);
 			} else {
-				linear_axis = m_calculatedTransformB.basis.get_axis(i);
+				linear_axis = m_calculatedTransformB.basis.get_column(i);
 			}
 
 			m_linearLimits.solveLinearAxis(

@@ -1,39 +1,39 @@
-/*************************************************************************/
-/*  godot_collision_solver_2d_sat.cpp                                    */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_collision_solver_2d_sat.cpp                                     */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "godot_collision_solver_2d_sat.h"
 
 #include "core/math/geometry_2d.h"
 
 struct _CollectorCallback2D {
-	GodotCollisionSolver2D::CallbackResult callback;
+	GodotCollisionSolver2D::CallbackResult callback = nullptr;
 	void *userdata = nullptr;
 	bool swap = false;
 	bool collided = false;
@@ -41,10 +41,6 @@ struct _CollectorCallback2D {
 	Vector2 *sep_axis = nullptr;
 
 	_FORCE_INLINE_ void call(const Vector2 &p_point_A, const Vector2 &p_point_B) {
-		/*
-		if (normal.dot(p_point_A) >= normal.dot(p_point_B))
-			return;
-		*/
 		if (swap) {
 			callback(p_point_B, p_point_A, userdata);
 		} else {
@@ -171,11 +167,11 @@ static void _generate_contacts_from_supports(const Vector2 *p_points_A, int p_po
 	int version_B = (pointcount_B > 2 ? 2 : pointcount_B) - 1;
 
 	GenerateContactsFunc contacts_func = generate_contacts_func_table[version_A][version_B];
-	ERR_FAIL_COND(!contacts_func);
+	ERR_FAIL_NULL(contacts_func);
 	contacts_func(points_A, pointcount_A, points_B, pointcount_B, p_collector);
 }
 
-template <class ShapeA, class ShapeB, bool castA = false, bool castB = false, bool withMargin = false>
+template <typename ShapeA, typename ShapeB, bool castA = false, bool castB = false, bool withMargin = false>
 class SeparatorAxisTest2D {
 	const ShapeA *shape_A = nullptr;
 	const ShapeB *shape_B = nullptr;
@@ -238,7 +234,7 @@ public:
 			axis = Vector2(0.0, 1.0);
 		}
 
-		real_t min_A, max_A, min_B, max_B;
+		real_t min_A = 0.0, max_A = 0.0, min_B = 0.0, max_B = 0.0;
 
 		if (castA) {
 			shape_A->project_range_cast(motion_A, axis, *transform_A, min_A, max_A);
@@ -481,11 +477,11 @@ static void _collision_segment_rectangle(const GodotShape2D *p_a, const Transfor
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_b.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[0].normalized())) {
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_b.elements[1].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[1].normalized())) {
 		return;
 	}
 
@@ -502,7 +498,7 @@ static void _collision_segment_rectangle(const GodotShape2D *p_a, const Transfor
 			return;
 		}
 
-		if (castA) {
+		if constexpr (castA) {
 			if (!separator.test_axis(rectangle_B->get_circle_axis(p_transform_b, inv, a + p_motion_a))) {
 				return;
 			}
@@ -511,7 +507,7 @@ static void _collision_segment_rectangle(const GodotShape2D *p_a, const Transfor
 			}
 		}
 
-		if (castB) {
+		if constexpr (castB) {
 			if (!separator.test_axis(rectangle_B->get_circle_axis(p_transform_b, inv, a - p_motion_b))) {
 				return;
 			}
@@ -520,7 +516,7 @@ static void _collision_segment_rectangle(const GodotShape2D *p_a, const Transfor
 			}
 		}
 
-		if (castA && castB) {
+		if constexpr (castA && castB) {
 			if (!separator.test_axis(rectangle_B->get_circle_axis(p_transform_b, inv, a - p_motion_b + p_motion_a))) {
 				return;
 			}
@@ -552,22 +548,22 @@ static void _collision_segment_capsule(const GodotShape2D *p_a, const Transform2
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_b.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[0].normalized())) {
 		return;
 	}
 
 	real_t capsule_dir = capsule_B->get_height() * 0.5 - capsule_B->get_radius();
 
-	if (TEST_POINT(p_transform_a.xform(segment_A->get_a()), (p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir))) {
+	if (TEST_POINT(p_transform_a.xform(segment_A->get_a()), (p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir))) {
 		return;
 	}
-	if (TEST_POINT(p_transform_a.xform(segment_A->get_a()), (p_transform_b.get_origin() - p_transform_b.elements[1] * capsule_dir))) {
+	if (TEST_POINT(p_transform_a.xform(segment_A->get_a()), (p_transform_b.get_origin() - p_transform_b.columns[1] * capsule_dir))) {
 		return;
 	}
-	if (TEST_POINT(p_transform_a.xform(segment_A->get_b()), (p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir))) {
+	if (TEST_POINT(p_transform_a.xform(segment_A->get_b()), (p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir))) {
 		return;
 	}
-	if (TEST_POINT(p_transform_a.xform(segment_A->get_b()), (p_transform_b.get_origin() - p_transform_b.elements[1] * capsule_dir))) {
+	if (TEST_POINT(p_transform_a.xform(segment_A->get_b()), (p_transform_b.get_origin() - p_transform_b.columns[1] * capsule_dir))) {
 		return;
 	}
 
@@ -650,8 +646,8 @@ static void _collision_circle_rectangle(const GodotShape2D *p_a, const Transform
 		return;
 	}
 
-	const Vector2 &sphere = p_transform_a.elements[2];
-	const Vector2 *axis = &p_transform_b.elements[0];
+	const Vector2 &sphere = p_transform_a.columns[2];
+	const Vector2 *axis = &p_transform_b.columns[0];
 	//const Vector2& half_extents = rectangle_B->get_half_extents();
 
 	if (!separator.test_axis(axis[0].normalized())) {
@@ -669,21 +665,21 @@ static void _collision_circle_rectangle(const GodotShape2D *p_a, const Transform
 		}
 	}
 
-	if (castA) {
+	if constexpr (castA) {
 		Vector2 sphereofs = sphere + p_motion_a;
 		if (!separator.test_axis(rectangle_B->get_circle_axis(p_transform_b, binv, sphereofs))) {
 			return;
 		}
 	}
 
-	if (castB) {
+	if constexpr (castB) {
 		Vector2 sphereofs = sphere - p_motion_b;
 		if (!separator.test_axis(rectangle_B->get_circle_axis(p_transform_b, binv, sphereofs))) {
 			return;
 		}
 	}
 
-	if (castA && castB) {
+	if constexpr (castA && castB) {
 		Vector2 sphereofs = sphere - p_motion_b + p_motion_a;
 		if (!separator.test_axis(rectangle_B->get_circle_axis(p_transform_b, binv, sphereofs))) {
 			return;
@@ -709,17 +705,17 @@ static void _collision_circle_capsule(const GodotShape2D *p_a, const Transform2D
 	}
 
 	//capsule axis
-	if (!separator.test_axis(p_transform_b.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[0].normalized())) {
 		return;
 	}
 
 	real_t capsule_dir = capsule_B->get_height() * 0.5 - capsule_B->get_radius();
 
 	//capsule endpoints
-	if (TEST_POINT(p_transform_a.get_origin(), (p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir))) {
+	if (TEST_POINT(p_transform_a.get_origin(), (p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir))) {
 		return;
 	}
-	if (TEST_POINT(p_transform_a.get_origin(), (p_transform_b.get_origin() - p_transform_b.elements[1] * capsule_dir))) {
+	if (TEST_POINT(p_transform_a.get_origin(), (p_transform_b.get_origin() - p_transform_b.columns[1] * capsule_dir))) {
 		return;
 	}
 
@@ -773,24 +769,24 @@ static void _collision_rectangle_rectangle(const GodotShape2D *p_a, const Transf
 	}
 
 	//box faces A
-	if (!separator.test_axis(p_transform_a.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[0].normalized())) {
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_a.elements[1].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[1].normalized())) {
 		return;
 	}
 
 	//box faces B
-	if (!separator.test_axis(p_transform_b.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[0].normalized())) {
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_b.elements[1].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[1].normalized())) {
 		return;
 	}
 
-	if (withMargin) {
+	if constexpr (withMargin) {
 		Transform2D invA = p_transform_a.affine_inverse();
 		Transform2D invB = p_transform_b.affine_inverse();
 
@@ -798,29 +794,29 @@ static void _collision_rectangle_rectangle(const GodotShape2D *p_a, const Transf
 			return;
 		}
 
-		if (castA || castB) {
+		if constexpr (castA || castB) {
 			Transform2D aofs = p_transform_a;
-			aofs.elements[2] += p_motion_a;
+			aofs.columns[2] += p_motion_a;
 
 			Transform2D bofs = p_transform_b;
-			bofs.elements[2] += p_motion_b;
+			bofs.columns[2] += p_motion_b;
 
-			Transform2D aofsinv = aofs.affine_inverse();
-			Transform2D bofsinv = bofs.affine_inverse();
+			[[maybe_unused]] Transform2D aofsinv = aofs.affine_inverse();
+			[[maybe_unused]] Transform2D bofsinv = bofs.affine_inverse();
 
-			if (castA) {
+			if constexpr (castA) {
 				if (!separator.test_axis(rectangle_A->get_box_axis(aofs, aofsinv, rectangle_B, p_transform_b, invB))) {
 					return;
 				}
 			}
 
-			if (castB) {
+			if constexpr (castB) {
 				if (!separator.test_axis(rectangle_A->get_box_axis(p_transform_a, invA, rectangle_B, bofs, bofsinv))) {
 					return;
 				}
 			}
 
-			if (castA && castB) {
+			if constexpr (castA && castB) {
 				if (!separator.test_axis(rectangle_A->get_box_axis(aofs, aofsinv, rectangle_B, bofs, bofsinv))) {
 					return;
 				}
@@ -847,16 +843,16 @@ static void _collision_rectangle_capsule(const GodotShape2D *p_a, const Transfor
 	}
 
 	//box faces
-	if (!separator.test_axis(p_transform_a.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[0].normalized())) {
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_a.elements[1].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[1].normalized())) {
 		return;
 	}
 
 	//capsule axis
-	if (!separator.test_axis(p_transform_b.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[0].normalized())) {
 		return;
 	}
 
@@ -868,15 +864,15 @@ static void _collision_rectangle_capsule(const GodotShape2D *p_a, const Transfor
 
 	for (int i = 0; i < 2; i++) {
 		{
-			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir;
+			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir;
 
 			if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, capsule_endpoint))) {
 				return;
 			}
 		}
 
-		if (castA) {
-			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir;
+		if constexpr (castA) {
+			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir;
 			capsule_endpoint -= p_motion_a;
 
 			if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, capsule_endpoint))) {
@@ -884,8 +880,8 @@ static void _collision_rectangle_capsule(const GodotShape2D *p_a, const Transfor
 			}
 		}
 
-		if (castB) {
-			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir;
+		if constexpr (castB) {
+			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir;
 			capsule_endpoint += p_motion_b;
 
 			if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, capsule_endpoint))) {
@@ -893,8 +889,8 @@ static void _collision_rectangle_capsule(const GodotShape2D *p_a, const Transfor
 			}
 		}
 
-		if (castA && castB) {
-			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir;
+		if constexpr (castA && castB) {
+			Vector2 capsule_endpoint = p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir;
 			capsule_endpoint -= p_motion_a;
 			capsule_endpoint += p_motion_b;
 
@@ -925,17 +921,17 @@ static void _collision_rectangle_convex_polygon(const GodotShape2D *p_a, const T
 	}
 
 	//box faces
-	if (!separator.test_axis(p_transform_a.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[0].normalized())) {
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_a.elements[1].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[1].normalized())) {
 		return;
 	}
 
 	//convex faces
 	Transform2D boxinv;
-	if (withMargin) {
+	if constexpr (withMargin) {
 		boxinv = p_transform_a.affine_inverse();
 	}
 	for (int i = 0; i < convex_B->get_point_count(); i++) {
@@ -943,22 +939,22 @@ static void _collision_rectangle_convex_polygon(const GodotShape2D *p_a, const T
 			return;
 		}
 
-		if (withMargin) {
+		if constexpr (withMargin) {
 			//all points vs all points need to be tested if margin exist
 			if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i))))) {
 				return;
 			}
-			if (castA) {
+			if constexpr (castA) {
 				if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i)) - p_motion_a))) {
 					return;
 				}
 			}
-			if (castB) {
+			if constexpr (castB) {
 				if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i)) + p_motion_b))) {
 					return;
 				}
 			}
-			if (castA && castB) {
+			if constexpr (castA && castB) {
 				if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i)) + p_motion_b - p_motion_a))) {
 					return;
 				}
@@ -988,11 +984,11 @@ static void _collision_capsule_capsule(const GodotShape2D *p_a, const Transform2
 
 	//capsule axis
 
-	if (!separator.test_axis(p_transform_b.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_b.columns[0].normalized())) {
 		return;
 	}
 
-	if (!separator.test_axis(p_transform_a.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[0].normalized())) {
 		return;
 	}
 
@@ -1000,11 +996,11 @@ static void _collision_capsule_capsule(const GodotShape2D *p_a, const Transform2
 
 	real_t capsule_dir_A = capsule_A->get_height() * 0.5 - capsule_A->get_radius();
 	for (int i = 0; i < 2; i++) {
-		Vector2 capsule_endpoint_A = p_transform_a.get_origin() + p_transform_a.elements[1] * capsule_dir_A;
+		Vector2 capsule_endpoint_A = p_transform_a.get_origin() + p_transform_a.columns[1] * capsule_dir_A;
 
 		real_t capsule_dir_B = capsule_B->get_height() * 0.5 - capsule_B->get_radius();
 		for (int j = 0; j < 2; j++) {
-			Vector2 capsule_endpoint_B = p_transform_b.get_origin() + p_transform_b.elements[1] * capsule_dir_B;
+			Vector2 capsule_endpoint_B = p_transform_b.get_origin() + p_transform_b.columns[1] * capsule_dir_B;
 
 			if (TEST_POINT(capsule_endpoint_A, capsule_endpoint_B)) {
 				return;
@@ -1036,7 +1032,7 @@ static void _collision_capsule_convex_polygon(const GodotShape2D *p_a, const Tra
 
 	//capsule axis
 
-	if (!separator.test_axis(p_transform_a.elements[0].normalized())) {
+	if (!separator.test_axis(p_transform_a.columns[0].normalized())) {
 		return;
 	}
 
@@ -1046,7 +1042,7 @@ static void _collision_capsule_convex_polygon(const GodotShape2D *p_a, const Tra
 
 		real_t capsule_dir = capsule_A->get_height() * 0.5 - capsule_A->get_radius();
 		for (int j = 0; j < 2; j++) {
-			Vector2 capsule_endpoint_A = p_transform_a.get_origin() + p_transform_a.elements[1] * capsule_dir;
+			Vector2 capsule_endpoint_A = p_transform_a.get_origin() + p_transform_a.columns[1] * capsule_dir;
 
 			if (TEST_POINT(capsule_endpoint_A, cpoint)) {
 				return;
@@ -1400,7 +1396,7 @@ bool sat_2d_calculate_penetration(const GodotShape2D *p_shape_A, const Transform
 		}
 	}
 
-	ERR_FAIL_COND_V(!collision_func, false);
+	ERR_FAIL_NULL_V(collision_func, false);
 
 	collision_func(A, *transform_A, B, *transform_B, &callback, *motion_A, *motion_B, margin_A, margin_B);
 

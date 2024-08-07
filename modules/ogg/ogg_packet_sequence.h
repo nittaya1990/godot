@@ -1,49 +1,48 @@
-/*************************************************************************/
-/*  ogg_packet_sequence.h                                                */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  ogg_packet_sequence.h                                                 */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef OGG_PACKET_SEQUENCE_H
 #define OGG_PACKET_SEQUENCE_H
 
 #include "core/io/resource.h"
-#include "core/object/gdvirtual.gen.inc"
-#include "core/variant/native_ptr.h"
 #include "core/variant/typed_array.h"
 #include "core/variant/variant.h"
-#include "thirdparty/libogg/ogg/ogg.h"
 
-class OGGPacketSequencePlayback;
+#include <ogg/ogg.h>
 
-class OGGPacketSequence : public Resource {
-	GDCLASS(OGGPacketSequence, Resource);
+class OggPacketSequencePlayback;
 
-	friend class OGGPacketSequencePlayback;
+class OggPacketSequence : public Resource {
+	GDCLASS(OggPacketSequence, Resource);
+
+	friend class OggPacketSequencePlayback;
 
 	// List of pages, each of which is a list of packets on that page. The innermost PackedByteArrays contain complete ogg packets.
 	Vector<Vector<PackedByteArray>> page_data;
@@ -67,13 +66,13 @@ public:
 	// This should be called for each page, even for pages that no packets ended on.
 	void push_page(int64_t p_granule_pos, const Vector<PackedByteArray> &p_data);
 
-	void set_packet_data(const Array &p_data);
-	Array get_packet_data() const;
+	void set_packet_data(const TypedArray<Array> &p_data);
+	TypedArray<Array> get_packet_data() const;
 
-	void set_packet_granule_positions(const Array &p_granule_positions);
-	Array get_packet_granule_positions() const;
+	void set_packet_granule_positions(const PackedInt64Array &p_granule_positions);
+	PackedInt64Array get_packet_granule_positions() const;
 
-	// Sets a sampling rate associated with this object. OGGPacketSequence doesn't understand codecs,
+	// Sets a sampling rate associated with this object. OggPacketSequence doesn't understand codecs,
 	// so this value is naively stored as a convenience.
 	void set_sampling_rate(float p_sampling_rate);
 
@@ -86,25 +85,25 @@ public:
 	// Returns the granule position of the last page in this sequence.
 	int64_t get_final_granule_pos() const;
 
-	Ref<OGGPacketSequencePlayback> instance_playback();
+	Ref<OggPacketSequencePlayback> instantiate_playback();
 
-	OGGPacketSequence() {}
-	virtual ~OGGPacketSequence() {}
+	OggPacketSequence() {}
+	virtual ~OggPacketSequence() {}
 };
 
-class OGGPacketSequencePlayback : public RefCounted {
-	GDCLASS(OGGPacketSequencePlayback, RefCounted);
+class OggPacketSequencePlayback : public RefCounted {
+	GDCLASS(OggPacketSequencePlayback, RefCounted);
 
-	friend class OGGPacketSequence;
+	friend class OggPacketSequence;
 
-	Ref<OGGPacketSequence> ogg_packet_sequence;
+	Ref<OggPacketSequence> ogg_packet_sequence;
 
 	mutable int64_t page_cursor = 0;
 	mutable int32_t packet_cursor = 0;
 
 	mutable ogg_packet *packet;
 
-	uint64_t data_version;
+	uint64_t data_version = 0;
 
 	mutable int64_t packetno = 0;
 
@@ -121,8 +120,15 @@ public:
 	// Returns true on success, false on failure.
 	bool seek_page(int64_t p_granule_pos);
 
-	OGGPacketSequencePlayback();
-	virtual ~OGGPacketSequencePlayback();
+	// Gets the current page number.
+	int64_t get_page_number() const;
+
+	// Moves to a specific page in the stream.
+	// Returns true on success, false if the page number is out of bounds.
+	bool set_page_number(int64_t p_page_number);
+
+	OggPacketSequencePlayback();
+	virtual ~OggPacketSequencePlayback();
 };
 
 #endif // OGG_PACKET_SEQUENCE_H

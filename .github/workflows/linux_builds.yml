@@ -1,10 +1,15 @@
 name: 🐧 Linux Builds
-on: [push, pull_request]
+on:
+  workflow_call:
 
 # Global Settings
 env:
+  # Used for the cache key. Add version suffix to force clean build.
   GODOT_BASE_BRANCH: master
   SCONSFLAGS: verbose=yes warnings=extra werror=yes module_text_server_fb_enabled=yes
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  TSAN_OPTIONS: suppressions=misc/error_suppressions/tsan.txt
 
 concurrency:
   group: ci-${{github.actor}}-${{github.head_ref || github.run_number}}-${{github.ref}}-linux
@@ -18,70 +23,116 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Editor w/ Mono (target=release_debug, tools=yes, tests=yes)
+          - name: Editor w/ Mono (target=editor)
             cache-name: linux-editor-mono
-            target: release_debug
-            tools: true
-            tests: false # Disabled due freeze caused by mix Mono build and CI
-            sconsflags: module_mono_enabled=yes mono_glue=no
-            doc-test: true
-            bin: "./bin/godot.linuxbsd.opt.tools.64.mono"
+            target: editor
+            sconsflags: module_mono_enabled=yes
+            bin: "./bin/godot.linuxbsd.editor.x86_64.mono"
             build-mono: true
+            tests: false # Disabled due freeze caused by mix Mono build and CI
+            doc-test: true
+            proj-conv: true
+            api-compat: true
             artifact: true
 
-          - name: Editor and sanitizers (target=debug, tools=yes, tests=yes, use_asan=yes, use_ubsan=yes)
-            cache-name: linux-editor-sanitizers
-            target: debug
-            tools: true
+          - name: Editor with doubles and GCC sanitizers (target=editor, tests=yes, dev_build=yes, scu_build=yes, precision=double, use_asan=yes, use_ubsan=yes, linker=gold)
+            cache-name: linux-editor-double-sanitizers
+            target: editor
+            # Debug symbols disabled as they're huge on this build and we hit the 14 GB limit for runners.
+            sconsflags: dev_build=yes scu_build=yes debug_symbols=no precision=double use_asan=yes use_ubsan=yes linker=gold
+            bin: "./bin/godot.linuxbsd.editor.dev.double.x86_64.san"
+            build-mono: false
             tests: true
-            sconsflags: use_asan=yes use_ubsan=yes
             proj-test: true
-            godot-cpp-test: true
-            bin: "./bin/godot.linuxbsd.tools.64s"
+            # Generate an API dump for godot-cpp tests.
+            api-dump: true
+            # Skip 2GiB artifact speeding up action.
+            artifact: false
+
+          - name: Editor with clang sanitizers (target=editor, tests=yes, dev_build=yes, use_asan=yes, use_ubsan=yes, use_llvm=yes, linker=lld)
+            cache-name: linux-editor-llvm-sanitizers
+            target: editor
+            sconsflags: dev_build=yes use_asan=yes use_ubsan=yes use_llvm=yes linker=lld
+            bin: "./bin/godot.linuxbsd.editor.dev.x86_64.llvm.san"
+            build-mono: false
+            tests: true
+            # Skip 2GiB artifact speeding up action.
+            artifact: false
+            # Test our oldest supported SCons/Python versions on one arbitrary editor build.
+            legacy-scons: true
+
+          - name: Editor with ThreadSanitizer (target=editor, tests=yes, dev_build=yes, use_tsan=yes, use_llvm=yes, linker=lld)
+            cache-name: linux-editor-thread-sanitizer
+            target: editor
+            tests: true
+            sconsflags: dev_build=yes use_tsan=yes use_llvm=yes linker=lld
+            bin: "./bin/godot.linuxbsd.editor.dev.x86_64.llvm.san"
             build-mono: false
             # Skip 2GiB artifact speeding up action.
             artifact: false
 
-          - name: Template w/ Mono (target=release, tools=no)
+          - name: Template w/ Mono (target=template_release)
             cache-name: linux-template-mono
-            target: release
-            tools: false
-            tests: false
-            sconsflags: module_mono_enabled=yes mono_glue=no debug_symbols=no
+            target: template_release
+            sconsflags: module_mono_enabled=yes tests=yes
+            bin: "./bin/godot.linuxbsd.template_release.x86_64.mono"
             build-mono: false
+            tests: true
             artifact: true
 
-          - name: Minimal Template (target=release, tools=no, everything disabled)
+          - name: Minimal template (target=template_release, everything disabled)
             cache-name: linux-template-minimal
-            target: release
-            tools: false
-            tests: false
-            sconsflags: modules_enabled_by_default=no disable_3d=yes disable_advanced_gui=yes deprecated=no minizip=no
+            target: template_release
+            sconsflags: modules_enabled_by_default=no disable_3d=yes disable_advanced_gui=yes deprecated=no minizip=no tests=yes
+            bin: "./bin/godot.linuxbsd.template_release.x86_64"
+            tests: true
             artifact: true
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Linux dependencies
-        shell: bash
+      # Need newer mesa for lavapipe to work properly.
+      - name: Linux dependencies for tests
+        if: ${{ matrix.proj-test }}
         run: |
-          # Azure repositories are not reliable, we need to prevent azure giving us packages.
-          sudo rm -f /etc/apt/sources.list.d/*
-          sudo cp -f misc/ci/sources.list /etc/apt/sources.list
-          sudo apt-get update
-          # The actual dependencies
-          sudo apt-get install build-essential pkg-config libx11-dev libxcursor-dev \
-              libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev \
-              libdbus-1-dev libudev-dev libxi-dev libxrandr-dev yasm xvfb wget unzip
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EB8B81E14DA65431D7504EA8F63F0F2B90935439
+          sudo add-apt-repository "deb https://ppa.launchpadcontent.net/kisak/turtle/ubuntu focal main"
+          sudo apt-get install -qq mesa-vulkan-drivers
 
-      - name: Setup Godot build cache
-        uses: ./.github/actions/godot-cache
+      # TODO: Figure out somehow how to embed this one.
+      - name: wayland-scanner dependency
+        run: |
+          sudo apt-get install libwayland-bin
+
+      - name: Free disk space on runner
+        run: |
+          echo "Disk usage before:" && df -h
+          sudo rm -rf /usr/local/lib/android
+          echo "Disk usage after:" && df -h
+
+      - name: Restore Godot build cache
+        uses: ./.github/actions/godot-cache-restore
         with:
           cache-name: ${{ matrix.cache-name }}
         continue-on-error: true
 
-      - name: Setup python and scons
+      - name: Setup Python and SCons
+        if: ${{ ! matrix.legacy-scons }}
         uses: ./.github/actions/godot-deps
+
+      - name: Setup Python and SCons (legacy versions)
+        if: ${{ matrix.legacy-scons }}
+        uses: ./.github/actions/godot-deps
+        with:
+          # Sync with Ensure*Version in SConstruct.
+          python-version: 3.6
+          scons-version: 3.1.2
+
+      - name: Setup GCC problem matcher
+        uses: ammaraskar/gcc-problem-matcher@master
 
       - name: Compilation
         uses: ./.github/actions/godot-build
@@ -89,29 +140,53 @@ jobs:
           sconsflags: ${{ env.SCONSFLAGS }} ${{ matrix.sconsflags }}
           platform: linuxbsd
           target: ${{ matrix.target }}
-          tools: ${{ matrix.tools }}
           tests: ${{ matrix.tests }}
 
-      - name: Generate Mono glue
+      - name: Save Godot build cache
+        uses: ./.github/actions/godot-cache-save
+        with:
+          cache-name: ${{ matrix.cache-name }}
+        continue-on-error: true
+
+      - name: Generate C# glue
         if: ${{ matrix.build-mono }}
         run: |
-          ${{ matrix.bin }} --headless --generate-mono-glue modules/mono/glue || true
+          ${{ matrix.bin }} --headless --generate-mono-glue ./modules/mono/glue
 
-      # Rebuild with mono
-      - name: Compilation (mono_glue=yes)
-        uses: ./.github/actions/godot-build
+      - name: Build .NET solutions
         if: ${{ matrix.build-mono }}
-        with:
-          sconsflags: ${{ env.SCONSFLAGS }} ${{ matrix.sconsflags }} mono_glue=yes
-          platform: linuxbsd
-          target: ${{ matrix.target }}
-          tools: ${{ matrix.tools }}
+        run: |
+          ./modules/mono/build_scripts/build_assemblies.py --godot-output-dir=./bin --godot-platform=linuxbsd
 
-      # Execute unit tests for the editor
+      - name: Prepare artifact
+        if: ${{ matrix.artifact }}
+        run: |
+          strip bin/godot.*
+          chmod +x bin/godot.*
+
+      - name: Upload artifact
+        uses: ./.github/actions/upload-artifact
+        if: ${{ matrix.artifact }}
+        with:
+          name: ${{ matrix.cache-name }}
+
+      - name: Dump Godot API
+        uses: ./.github/actions/godot-api-dump
+        if: ${{ matrix.api-dump }}
+        with:
+          bin: ${{ matrix.bin }}
+
       - name: Unit tests
         if: ${{ matrix.tests }}
         run: |
-          ${{ matrix.bin }} --test --headless
+          ${{ matrix.bin }} --version
+          ${{ matrix.bin }} --help
+          ${{ matrix.bin }} --headless --test --force-colors
+
+      - name: .NET source generators tests
+        if: ${{ matrix.build-mono }}
+        run: |
+          dotnet test modules/mono/editor/Godot.NET.Sdk/Godot.SourceGenerators.Tests
 
       # Check class reference
       - name: Check for class reference updates
@@ -122,85 +197,22 @@ jobs:
           ${{ matrix.bin }} --doctool --headless 2>&1 > /dev/null || true
           git diff --color --exit-code && ! git ls-files --others --exclude-standard | sed -e 's/^/New doc file missing in PR: /' | grep 'xml$'
 
-      # Download, unzip and setup SwiftShader library [4466040]
-      - name: Download SwiftShader
-        if: ${{ matrix.tests }}
+      # Check API backwards compatibility
+      - name: Check for GDExtension compatibility
+        if: ${{ matrix.api-compat }}
         run: |
-          wget https://github.com/qarmin/gtk_library_store/releases/download/3.24.0/swiftshader2.zip
-          unzip swiftshader2.zip
-          rm swiftshader2.zip
-          curr="$(pwd)/libvk_swiftshader.so"
-          sed -i "s|PATH_TO_CHANGE|$curr|" vk_swiftshader_icd.json
+          ./misc/scripts/validate_extension_api.sh "${{ matrix.bin }}"
 
-      # Download and extract zip archive with project, folder is renamed to be able to easy change used project
-      - name: Download test project
+      # Download and run the test project
+      - name: Test Godot project
+        uses: ./.github/actions/godot-project-test
         if: ${{ matrix.proj-test }}
-        run: |
-          wget https://github.com/qarmin/RegressionTestProject/archive/4.0.zip
-          unzip 4.0.zip
-          mv "RegressionTestProject-4.0" "test_project"
-
-      # Editor is quite complicated piece of software, so it is easy to introduce bug here
-      - name: Open and close editor
-        if: ${{ matrix.proj-test }}
-        run: |
-          VK_ICD_FILENAMES=$(pwd)/vk_swiftshader_icd.json DRI_PRIME=0 xvfb-run ${{ matrix.bin }} --audio-driver Dummy -e -q --path test_project 2>&1 | tee sanitizers_log.txt || true
-          misc/scripts/check_ci_log.py sanitizers_log.txt
-
-      # Run test project
-      - name: Run project
-        if: ${{ matrix.proj-test }}
-        run: |
-          VK_ICD_FILENAMES=$(pwd)/vk_swiftshader_icd.json DRI_PRIME=0 xvfb-run ${{ matrix.bin }} 40 --audio-driver Dummy --path test_project 2>&1 | tee sanitizers_log.txt || true
-          misc/scripts/check_ci_log.py sanitizers_log.txt
-
-      # Checkout godot-cpp
-      - name: Checkout godot-cpp
-        if: ${{ matrix.godot-cpp-test }}
-        uses: actions/checkout@v2
         with:
-          repository: godotengine/godot-cpp
-          submodules: 'recursive'
-          path: 'godot-cpp'
+          bin: ${{ matrix.bin }}
 
-      # Check extension API
-      - name: Check for extension api updates
-        if: ${{ matrix.godot-cpp-test }}
-        run: |
-          echo "Running --dump-extension-api to create extensions api."
-          VK_ICD_FILENAMES=$(pwd)/vk_swiftshader_icd.json DRI_PRIME=0 xvfb-run ${{ matrix.bin }} --audio-driver Dummy --dump-extension-api 2>&1 > /dev/null || true
-          misc/scripts/compare_extension_api.py godot-cpp/godot-headers/extension_api.json extension_api.json
-
-      # Copy new extension API files into place
-      - name: Copy new extension API files into place
-        if: ${{ matrix.godot-cpp-test }}
-        run: |
-          cp -f extension_api.json godot-cpp/godot-headers/
-          cp -f core/extension/gdnative_interface.h godot-cpp/godot-headers/godot/
-
-      # Build godot-cpp library
-      - name: Build godot-cpp library
-        if: ${{ matrix.godot-cpp-test }}
-        run: |
-          cd godot-cpp
-          scons target=${{ matrix.target }} generate_bindings=yes -j2
-          cd ..
-
-      # Build godot-cpp test extension
-      - name: Build godot-cpp test extension
-        if: ${{ matrix.godot-cpp-test }}
-        run: |
-          cd godot-cpp/test
-          scons target=${{ matrix.target }} -j2
-          cd ../..
-
-      - name: Prepare artifact
-        if: ${{ matrix.artifact }}
-        run: |
-          strip bin/godot.*
-
-      - name: Upload artifact
-        uses: ./.github/actions/upload-artifact
-        if: ${{ matrix.artifact }}
+      # Test the project converter
+      - name: Test project converter
+        uses: ./.github/actions/godot-converter-test
+        if: ${{ matrix.proj-conv }}
         with:
-          name: ${{ matrix.cache-name }}
+          bin: ${{ matrix.bin }}

@@ -10,9 +10,9 @@ precision mediump float;
 precision mediump int;
 #endif
 
-layout(location = 0) highp vec4 vertex_attrib;
+layout(location = 0) in highp vec4 vertex_attrib;
 /* clang-format on */
-layout(location = 4) vec2 uv_in;
+layout(location = 4) in vec2 uv_in;
 
 out vec2 uv_interp;
 
@@ -95,6 +95,6 @@ void main() {
 	float depth_fix = 1.0 / dot(normal, unorm);
 
 	depth = 2.0 * depth - 1.0;
-	float linear_depth = 2.0 * z_near * z_far / (z_far + z_near - depth * (z_far - z_near));
-	gl_FragDepth = (linear_depth * depth_fix + bias) / z_far;
+	float linear_depth = 2.0 * z_near * z_far / (z_far + z_near + depth * (z_far - z_near));
+	gl_FragDepth = (z_far - (linear_depth * depth_fix + bias)) / z_far;
 }

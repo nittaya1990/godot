@@ -1,45 +1,47 @@
-/*************************************************************************/
-/*  audio_stream_player_3d.h                                             */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  audio_stream_player_3d.h                                              */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef AUDIO_STREAM_PLAYER_3D_H
 #define AUDIO_STREAM_PLAYER_3D_H
 
-#include "core/os/mutex.h"
-#include "scene/3d/area_3d.h"
 #include "scene/3d/node_3d.h"
-#include "scene/3d/velocity_tracker_3d.h"
-#include "servers/audio/audio_filter_sw.h"
-#include "servers/audio/audio_stream.h"
 #include "servers/audio_server.h"
 
+class Area3D;
+struct AudioFrame;
+class AudioStream;
+class AudioStreamPlayback;
+class AudioStreamPlayerInternal;
 class Camera3D;
+class VelocityTracker3D;
+
 class AudioStreamPlayer3D : public Node3D {
 	GDCLASS(AudioStreamPlayer3D, Node3D);
 
@@ -64,30 +66,25 @@ private:
 
 	};
 
-	Vector<Ref<AudioStreamPlayback>> stream_playbacks;
-	Ref<AudioStream> stream;
+	AudioStreamPlayerInternal *internal = nullptr;
 
-	SafeFlag active{ false };
 	SafeNumeric<float> setplay{ -1.0 };
+	Ref<AudioStreamPlayback> setplayback;
 
 	AttenuationModel attenuation_model = ATTENUATION_INVERSE_DISTANCE;
-	float unit_db = 0.0;
 	float unit_size = 10.0;
 	float max_db = 3.0;
-	float pitch_scale = 1.0;
 	// Internally used to take doppler tracking into account.
 	float actual_pitch_scale = 1.0;
-	bool autoplay = false;
-	StringName bus = SNAME("Master");
-	int max_polyphony = 1;
 
 	uint64_t last_mix_count = -1;
+	bool force_update_panning = false;
 
 	static void _calc_output_vol(const Vector3 &source_dir, real_t tightness, Vector<AudioFrame> &output);
 
 	void _calc_reverb_vol(Area3D *area, Vector3 listener_area_pos, Vector<AudioFrame> direct_path_vol, Vector<AudioFrame> &reverb_vol);
 
-	static void _listener_changed_cb(void *self) { reinterpret_cast<AudioStreamPlayer3D *>(self)->_update_panning(); }
+	static void _listener_changed_cb(void *self) { reinterpret_cast<AudioStreamPlayer3D *>(self)->force_update_panning = true; }
 
 	void _set_playing(bool p_enable);
 	bool _is_active() const;
@@ -95,9 +92,9 @@ private:
 	Area3D *_get_overriding_area();
 	Vector<AudioFrame> _update_panning();
 
-	void _bus_layout_changed();
-
 	uint32_t area_mask = 1;
+
+	AudioServer::PlaybackType playback_type = AudioServer::PlaybackType::PLAYBACK_TYPE_DEFAULT;
 
 	bool emission_angle_enabled = false;
 	float emission_angle = 45.0;
@@ -115,17 +112,29 @@ private:
 
 	float _get_attenuation_db(float p_distance) const;
 
+	float panning_strength = 1.0f;
+	float cached_global_panning_strength = 0.5f;
+
 protected:
-	void _validate_property(PropertyInfo &property) const override;
+	void _validate_property(PropertyInfo &p_property) const;
 	void _notification(int p_what);
 	static void _bind_methods();
+
+	bool _set(const StringName &p_name, const Variant &p_value);
+	bool _get(const StringName &p_name, Variant &r_ret) const;
+	void _get_property_list(List<PropertyInfo> *p_list) const;
+
+#ifndef DISABLE_DEPRECATED
+	bool _is_autoplay_enabled_bind_compat_86907();
+	static void _bind_compatibility_methods();
+#endif // DISABLE_DEPRECATED
 
 public:
 	void set_stream(Ref<AudioStream> p_stream);
 	Ref<AudioStream> get_stream() const;
 
-	void set_unit_db(float p_volume);
-	float get_unit_db() const;
+	void set_volume_db(float p_volume);
+	float get_volume_db() const;
 
 	void set_unit_size(float p_volume);
 	float get_unit_size() const;
@@ -149,7 +158,7 @@ public:
 	int get_max_polyphony() const;
 
 	void set_autoplay(bool p_enable);
-	bool is_autoplay_enabled();
+	bool is_autoplay_enabled() const;
 
 	void set_max_distance(float p_metres);
 	float get_max_distance() const;
@@ -181,7 +190,14 @@ public:
 	void set_stream_paused(bool p_pause);
 	bool get_stream_paused() const;
 
+	void set_panning_strength(float p_panning_strength);
+	float get_panning_strength() const;
+
+	bool has_stream_playback();
 	Ref<AudioStreamPlayback> get_stream_playback();
+
+	AudioServer::PlaybackType get_playback_type() const;
+	void set_playback_type(AudioServer::PlaybackType p_playback_type);
 
 	AudioStreamPlayer3D();
 	~AudioStreamPlayer3D();
@@ -189,4 +205,5 @@ public:
 
 VARIANT_ENUM_CAST(AudioStreamPlayer3D::AttenuationModel)
 VARIANT_ENUM_CAST(AudioStreamPlayer3D::DopplerTracking)
+
 #endif // AUDIO_STREAM_PLAYER_3D_H

@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  csg.cpp                                                              */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  csg.cpp                                                               */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "csg.h"
 
@@ -194,7 +194,7 @@ void CSGBrush::_regen_face_aabbs() {
 	}
 }
 
-void CSGBrush::build_from_faces(const Vector<Vector3> &p_vertices, const Vector<Vector2> &p_uvs, const Vector<bool> &p_smooth, const Vector<Ref<Material>> &p_materials, const Vector<bool> &p_invert_faces) {
+void CSGBrush::build_from_faces(const Vector<Vector3> &p_vertices, const Vector<Vector2> &p_uvs, const Vector<bool> &p_smooth, const Vector<Ref<Material>> &p_materials, const Vector<bool> &p_flip_faces) {
 	faces.clear();
 
 	int vc = p_vertices.size();
@@ -208,10 +208,10 @@ void CSGBrush::build_from_faces(const Vector<Vector3> &p_vertices, const Vector<
 	const bool *rs = p_smooth.ptr();
 	int mc = p_materials.size();
 	const Ref<Material> *rm = p_materials.ptr();
-	int ic = p_invert_faces.size();
-	const bool *ri = p_invert_faces.ptr();
+	int ic = p_flip_faces.size();
+	const bool *ri = p_flip_faces.ptr();
 
-	Map<Ref<Material>, int> material_map;
+	HashMap<Ref<Material>, int> material_map;
 
 	faces.resize(p_vertices.size() / 3);
 
@@ -242,10 +242,10 @@ void CSGBrush::build_from_faces(const Vector<Vector3> &p_vertices, const Vector<
 		if (mc == vc / 3) {
 			Ref<Material> mat = rm[i];
 			if (mat.is_valid()) {
-				const Map<Ref<Material>, int>::Element *E = material_map.find(mat);
+				HashMap<Ref<Material>, int>::ConstIterator E = material_map.find(mat);
 
 				if (E) {
-					f.material = E->get();
+					f.material = E->value;
 				} else {
 					f.material = material_map.size();
 					material_map[mat] = f.material;
@@ -467,7 +467,7 @@ void CSGBrushOperation::merge_brushes(Operation p_operation, const CSGBrush &p_b
 // Use a limit to speed up bvh and limit the depth.
 #define BVH_LIMIT 8
 
-int CSGBrushOperation::MeshMerge::_create_bvh(FaceBVH *facebvhptr, FaceBVH **facebvhptrptr, int p_from, int p_size, int p_depth, int &r_max_depth, int &r_max_alloc) {
+int CSGBrushOperation::MeshMerge::_create_bvh(FaceBVH *r_facebvhptr, FaceBVH **r_facebvhptrptr, int p_from, int p_size, int p_depth, int &r_max_depth, int &r_max_alloc) {
 	if (p_depth > r_max_depth) {
 		r_max_depth = p_depth;
 	}
@@ -478,15 +478,15 @@ int CSGBrushOperation::MeshMerge::_create_bvh(FaceBVH *facebvhptr, FaceBVH **fac
 
 	if (p_size <= BVH_LIMIT) {
 		for (int i = 0; i < p_size - 1; i++) {
-			facebvhptrptr[p_from + i]->next = facebvhptrptr[p_from + i + 1] - facebvhptr;
+			r_facebvhptrptr[p_from + i]->next = r_facebvhptrptr[p_from + i + 1] - r_facebvhptr;
 		}
-		return facebvhptrptr[p_from] - facebvhptr;
+		return r_facebvhptrptr[p_from] - r_facebvhptr;
 	}
 
 	AABB aabb;
-	aabb = facebvhptrptr[p_from]->aabb;
+	aabb = r_facebvhptrptr[p_from]->aabb;
 	for (int i = 1; i < p_size; i++) {
-		aabb.merge_with(facebvhptrptr[p_from + i]->aabb);
+		aabb.merge_with(r_facebvhptrptr[p_from + i]->aabb);
 	}
 
 	int li = aabb.get_longest_axis_index();
@@ -494,28 +494,28 @@ int CSGBrushOperation::MeshMerge::_create_bvh(FaceBVH *facebvhptr, FaceBVH **fac
 	switch (li) {
 		case Vector3::AXIS_X: {
 			SortArray<FaceBVH *, FaceBVHCmpX> sort_x;
-			sort_x.nth_element(0, p_size, p_size / 2, &facebvhptrptr[p_from]);
+			sort_x.nth_element(0, p_size, p_size / 2, &r_facebvhptrptr[p_from]);
 			//sort_x.sort(&p_bb[p_from],p_size);
 		} break;
 
 		case Vector3::AXIS_Y: {
 			SortArray<FaceBVH *, FaceBVHCmpY> sort_y;
-			sort_y.nth_element(0, p_size, p_size / 2, &facebvhptrptr[p_from]);
+			sort_y.nth_element(0, p_size, p_size / 2, &r_facebvhptrptr[p_from]);
 			//sort_y.sort(&p_bb[p_from],p_size);
 		} break;
 
 		case Vector3::AXIS_Z: {
 			SortArray<FaceBVH *, FaceBVHCmpZ> sort_z;
-			sort_z.nth_element(0, p_size, p_size / 2, &facebvhptrptr[p_from]);
+			sort_z.nth_element(0, p_size, p_size / 2, &r_facebvhptrptr[p_from]);
 			//sort_z.sort(&p_bb[p_from],p_size);
 		} break;
 	}
 
-	int left = _create_bvh(facebvhptr, facebvhptrptr, p_from, p_size / 2, p_depth + 1, r_max_depth, r_max_alloc);
-	int right = _create_bvh(facebvhptr, facebvhptrptr, p_from + p_size / 2, p_size - p_size / 2, p_depth + 1, r_max_depth, r_max_alloc);
+	int left = _create_bvh(r_facebvhptr, r_facebvhptrptr, p_from, p_size / 2, p_depth + 1, r_max_depth, r_max_alloc);
+	int right = _create_bvh(r_facebvhptr, r_facebvhptrptr, p_from + p_size / 2, p_size - p_size / 2, p_depth + 1, r_max_depth, r_max_alloc);
 
 	int index = r_max_alloc++;
-	FaceBVH *_new = &facebvhptr[index];
+	FaceBVH *_new = &r_facebvhptr[index];
 	_new->aabb = aabb;
 	_new->center = aabb.get_center();
 	_new->face = -1;
@@ -526,20 +526,22 @@ int CSGBrushOperation::MeshMerge::_create_bvh(FaceBVH *facebvhptr, FaceBVH **fac
 	return index;
 }
 
-void CSGBrushOperation::MeshMerge::_add_distance(List<real_t> &r_intersectionsA, List<real_t> &r_intersectionsB, bool p_from_B, real_t p_distance) const {
-	List<real_t> &intersections = p_from_B ? r_intersectionsB : r_intersectionsA;
+void CSGBrushOperation::MeshMerge::_add_distance(List<IntersectionDistance> &r_intersectionsA, List<IntersectionDistance> &r_intersectionsB, bool p_from_B, real_t p_distance_squared, bool p_is_conormal) const {
+	List<IntersectionDistance> &intersections = p_from_B ? r_intersectionsB : r_intersectionsA;
 
 	// Check if distance exists.
-	for (const real_t E : intersections) {
-		if (Math::is_equal_approx(E, p_distance)) {
+	for (const IntersectionDistance E : intersections) {
+		if (E.is_conormal == p_is_conormal && Math::is_equal_approx(E.distance_squared, p_distance_squared)) {
 			return;
 		}
 	}
-
-	intersections.push_back(p_distance);
+	IntersectionDistance distance;
+	distance.is_conormal = p_is_conormal;
+	distance.distance_squared = p_distance_squared;
+	intersections.push_back(distance);
 }
 
-bool CSGBrushOperation::MeshMerge::_bvh_inside(FaceBVH *facebvhptr, int p_max_depth, int p_bvh_first, int p_face_idx) const {
+bool CSGBrushOperation::MeshMerge::_bvh_inside(FaceBVH *r_facebvhptr, int p_max_depth, int p_bvh_first, int p_face_idx) const {
 	Face face = faces[p_face_idx];
 	Vector3 face_points[3] = {
 		points[face.points[0]],
@@ -561,8 +563,11 @@ bool CSGBrushOperation::MeshMerge::_bvh_inside(FaceBVH *facebvhptr, int p_max_de
 		VISITED_BIT_MASK = ~NODE_IDX_MASK
 	};
 
-	List<real_t> intersectionsA;
-	List<real_t> intersectionsB;
+	List<IntersectionDistance> intersectionsA;
+	List<IntersectionDistance> intersectionsB;
+
+	Intersection closest_intersection;
+	closest_intersection.found = false;
 
 	int level = 0;
 	int pos = p_bvh_first;
@@ -570,7 +575,7 @@ bool CSGBrushOperation::MeshMerge::_bvh_inside(FaceBVH *facebvhptr, int p_max_de
 
 	while (true) {
 		uint32_t node = stack[level] & NODE_IDX_MASK;
-		const FaceBVH *current_facebvhptr = &(facebvhptr[node]);
+		const FaceBVH *current_facebvhptr = &(r_facebvhptr[node]);
 		bool done = false;
 
 		switch (stack[level] >> VISITED_BIT_SHIFT) {
@@ -587,22 +592,66 @@ bool CSGBrushOperation::MeshMerge::_bvh_inside(FaceBVH *facebvhptr, int p_max_de
 							};
 							Vector3 current_normal = Plane(current_points[0], current_points[1], current_points[2]).normal;
 							Vector3 intersection_point;
-
 							// Check if faces are co-planar.
 							if (current_normal.is_equal_approx(face_normal) &&
 									is_point_in_triangle(face_center, current_points)) {
 								// Only add an intersection if not a B face.
 								if (!face.from_b) {
-									_add_distance(intersectionsA, intersectionsB, current_face.from_b, 0);
+									_add_distance(intersectionsA, intersectionsB, current_face.from_b, 0, true);
 								}
 							} else if (ray_intersects_triangle(face_center, face_normal, current_points, CMP_EPSILON, intersection_point)) {
-								real_t distance = face_center.distance_to(intersection_point);
-								_add_distance(intersectionsA, intersectionsB, current_face.from_b, distance);
+								real_t distance_squared = face_center.distance_squared_to(intersection_point);
+								real_t inner = current_normal.dot(face_normal);
+								// If the faces are perpendicular, ignore this face.
+								// The triangles on the side should be intersected and result in the correct behavior.
+								if (!Math::is_zero_approx(inner)) {
+									_add_distance(intersectionsA, intersectionsB, current_face.from_b, distance_squared, inner > 0.0f);
+								}
+							}
+
+							if (face.from_b != current_face.from_b) {
+								if (current_normal.is_equal_approx(face_normal) &&
+										is_point_in_triangle(face_center, current_points)) {
+									// Only add an intersection if not a B face.
+									if (!face.from_b) {
+										closest_intersection.found = true;
+										closest_intersection.conormal = 1.0f;
+										closest_intersection.distance_squared = 0.0f;
+										closest_intersection.origin_angle = -FLT_MAX;
+									}
+								} else if (ray_intersects_triangle(face_center, face_normal, current_points, CMP_EPSILON, intersection_point)) {
+									Intersection potential_intersection;
+									potential_intersection.found = true;
+									potential_intersection.conormal = face_normal.dot(current_normal);
+									potential_intersection.distance_squared = face_center.distance_squared_to(intersection_point);
+									potential_intersection.origin_angle = Math::abs(potential_intersection.conormal);
+									real_t intersection_dist_from_face = face_normal.dot(intersection_point - face_center);
+									for (int i = 0; i < 3; i++) {
+										real_t point_dist_from_face = face_normal.dot(current_points[i] - face_center);
+										if (!Math::is_equal_approx(point_dist_from_face, intersection_dist_from_face) &&
+												point_dist_from_face < intersection_dist_from_face) {
+											potential_intersection.origin_angle = -potential_intersection.origin_angle;
+											break;
+										}
+									}
+									if (potential_intersection.conormal != 0.0f) {
+										if (!closest_intersection.found) {
+											closest_intersection = potential_intersection;
+										} else if (!Math::is_equal_approx(potential_intersection.distance_squared, closest_intersection.distance_squared) &&
+												potential_intersection.distance_squared < closest_intersection.distance_squared) {
+											closest_intersection = potential_intersection;
+										} else if (Math::is_equal_approx(potential_intersection.distance_squared, closest_intersection.distance_squared)) {
+											if (potential_intersection.origin_angle < closest_intersection.origin_angle) {
+												closest_intersection = potential_intersection;
+											}
+										}
+									}
+								}
 							}
 						}
 
 						if (current_facebvhptr->next != -1) {
-							current_facebvhptr = &facebvhptr[current_facebvhptr->next];
+							current_facebvhptr = &r_facebvhptr[current_facebvhptr->next];
 						} else {
 							current_facebvhptr = nullptr;
 						}
@@ -652,8 +701,11 @@ bool CSGBrushOperation::MeshMerge::_bvh_inside(FaceBVH *facebvhptr, int p_max_de
 		}
 	}
 
-	// Inside if face normal intersects other faces an odd number of times.
-	return (intersectionsA.size() + intersectionsB.size()) & 1;
+	if (!closest_intersection.found) {
+		return false;
+	} else {
+		return closest_intersection.conormal > 0.0f;
+	}
 }
 
 void CSGBrushOperation::MeshMerge::mark_inside_faces() {
@@ -729,7 +781,7 @@ void CSGBrushOperation::MeshMerge::mark_inside_faces() {
 	}
 }
 
-void CSGBrushOperation::MeshMerge::add_face(const Vector3 p_points[], const Vector2 p_uvs[], bool p_smooth, bool p_invert, const Ref<Material> &p_material, bool p_from_b) {
+void CSGBrushOperation::MeshMerge::add_face(const Vector3 p_points[3], const Vector2 p_uvs[3], bool p_smooth, bool p_invert, const Ref<Material> &p_material, bool p_from_b) {
 	int indices[3];
 	for (int i = 0; i < 3; i++) {
 		VertexKey vk;
@@ -800,7 +852,7 @@ int CSGBrushOperation::Build2DFaces::_add_vertex(const Vertex2D &p_vertex) {
 }
 
 void CSGBrushOperation::Build2DFaces::_add_vertex_idx_sorted(Vector<int> &r_vertex_indices, int p_new_vertex_index) {
-	if (p_new_vertex_index >= 0 && r_vertex_indices.find(p_new_vertex_index) == -1) {
+	if (p_new_vertex_index >= 0 && !r_vertex_indices.has(p_new_vertex_index)) {
 		ERR_FAIL_COND_MSG(p_new_vertex_index >= vertices.size(), "Invalid vertex index.");
 
 		// The first vertex.
@@ -933,7 +985,7 @@ void CSGBrushOperation::Build2DFaces::_merge_faces(const Vector<int> &p_segment_
 		merge_faces_idx.sort();
 		merge_faces_idx.reverse();
 		for (int i = 0; i < merge_faces_idx.size(); ++i) {
-			faces.remove(merge_faces_idx[i]);
+			faces.remove_at(merge_faces_idx[i]);
 		}
 
 		if (degenerate_points.size() == 0) {
@@ -983,7 +1035,7 @@ void CSGBrushOperation::Build2DFaces::_merge_faces(const Vector<int> &p_segment_
 
 						// If new vertex snaps to degenerate vertex, just delete this face.
 						if (degenerate_idx == opposite_vertex_idx) {
-							faces.remove(face_idx);
+							faces.remove_at(face_idx);
 							// Update index.
 							--face_idx;
 							break;
@@ -999,7 +1051,7 @@ void CSGBrushOperation::Build2DFaces::_merge_faces(const Vector<int> &p_segment_
 						right_face.vertex_idx[0] = opposite_vertex_idx;
 						right_face.vertex_idx[1] = face.vertex_idx[face_edge_idx];
 						right_face.vertex_idx[2] = degenerate_idx;
-						faces.remove(face_idx);
+						faces.remove_at(face_idx);
 						faces.insert(face_idx, right_face);
 						faces.insert(face_idx, left_face);
 
@@ -1016,6 +1068,8 @@ void CSGBrushOperation::Build2DFaces::_merge_faces(const Vector<int> &p_segment_
 }
 
 void CSGBrushOperation::Build2DFaces::_find_edge_intersections(const Vector2 p_segment_points[2], Vector<int> &r_segment_indices) {
+	LocalVector<Vector<Vector2>> processed_edges;
+
 	// For each face.
 	for (int face_idx = 0; face_idx < faces.size(); ++face_idx) {
 		Face2D face = faces[face_idx];
@@ -1027,17 +1081,32 @@ void CSGBrushOperation::Build2DFaces::_find_edge_intersections(const Vector2 p_s
 
 		// Check each edge.
 		for (int face_edge_idx = 0; face_edge_idx < 3; ++face_edge_idx) {
-			Vector2 edge_points[2] = {
+			Vector<Vector2> edge_points_and_uvs = {
 				face_vertices[face_edge_idx].point,
-				face_vertices[(face_edge_idx + 1) % 3].point
-			};
-			Vector2 edge_uvs[2] = {
+				face_vertices[(face_edge_idx + 1) % 3].point,
 				face_vertices[face_edge_idx].uv,
 				face_vertices[(face_edge_idx + 1) % 3].uv
 			};
-			Vector2 intersection_point;
+
+			Vector2 edge_points[2] = {
+				edge_points_and_uvs[0],
+				edge_points_and_uvs[1],
+			};
+			Vector2 edge_uvs[2] = {
+				edge_points_and_uvs[2],
+				edge_points_and_uvs[3],
+			};
+
+			// Check if edge has already been processed.
+			if (processed_edges.has(edge_points_and_uvs)) {
+				continue;
+			}
+
+			processed_edges.push_back(edge_points_and_uvs);
 
 			// First check if the ends of the segment are on the edge.
+			Vector2 intersection_point;
+
 			bool on_edge = false;
 			for (int edge_point_idx = 0; edge_point_idx < 2; ++edge_point_idx) {
 				intersection_point = Geometry2D::get_closest_point_to_segment(p_segment_points[edge_point_idx], edge_points);
@@ -1070,7 +1139,7 @@ void CSGBrushOperation::Build2DFaces::_find_edge_intersections(const Vector2 p_s
 
 				// If new vertex snaps to opposite vertex, just delete this face.
 				if (new_vertex_idx == opposite_vertex_idx) {
-					faces.remove(face_idx);
+					faces.remove_at(face_idx);
 					// Update index.
 					--face_idx;
 					break;
@@ -1092,7 +1161,7 @@ void CSGBrushOperation::Build2DFaces::_find_edge_intersections(const Vector2 p_s
 				right_face.vertex_idx[0] = opposite_vertex_idx;
 				right_face.vertex_idx[1] = face.vertex_idx[face_edge_idx];
 				right_face.vertex_idx[2] = new_vertex_idx;
-				faces.remove(face_idx);
+				faces.remove_at(face_idx);
 				faces.insert(face_idx, right_face);
 				faces.insert(face_idx, left_face);
 
@@ -1162,7 +1231,7 @@ int CSGBrushOperation::Build2DFaces::_insert_point(const Vector2 &p_point) {
 
 				// If new vertex snaps to opposite vertex, just delete this face.
 				if (new_vertex_idx == opposite_vertex_idx) {
-					faces.remove(face_idx);
+					faces.remove_at(face_idx);
 					// Update index.
 					--face_idx;
 					break;
@@ -1187,7 +1256,7 @@ int CSGBrushOperation::Build2DFaces::_insert_point(const Vector2 &p_point) {
 				right_face.vertex_idx[0] = opposite_vertex_idx;
 				right_face.vertex_idx[1] = face.vertex_idx[face_edge_idx];
 				right_face.vertex_idx[2] = new_vertex_idx;
-				faces.remove(face_idx);
+				faces.remove_at(face_idx);
 				faces.insert(face_idx, right_face);
 				faces.insert(face_idx, left_face);
 
@@ -1222,7 +1291,7 @@ int CSGBrushOperation::Build2DFaces::_insert_point(const Vector2 &p_point) {
 				new_face.vertex_idx[2] = new_vertex_idx;
 				faces.push_back(new_face);
 			}
-			faces.remove(face_idx);
+			faces.remove_at(face_idx);
 
 			// No need to check other faces.
 			break;
@@ -1336,9 +1405,9 @@ CSGBrushOperation::Build2DFaces::Build2DFaces(const CSGBrush &p_brush, int p_fac
 
 	plane = Plane(points_3D[0], points_3D[1], points_3D[2]);
 	to_3D.origin = points_3D[0];
-	to_3D.basis.set_axis(2, plane.normal);
-	to_3D.basis.set_axis(0, (points_3D[1] - points_3D[2]).normalized());
-	to_3D.basis.set_axis(1, to_3D.basis.get_axis(0).cross(to_3D.basis.get_axis(2)).normalized());
+	to_3D.basis.set_column(2, plane.normal);
+	to_3D.basis.set_column(0, (points_3D[1] - points_3D[2]).normalized());
+	to_3D.basis.set_column(1, to_3D.basis.get_column(0).cross(to_3D.basis.get_column(2)).normalized());
 	to_2D = to_3D.affine_inverse();
 
 	Face2D face;
@@ -1387,13 +1456,13 @@ void CSGBrushOperation::update_faces(const CSGBrush &p_brush_a, const int p_face
 	}
 
 	// Ensure B has points either side of or in the plane of A.
-	int in_plane_count = 0, over_count = 0, under_count = 0;
+	int over_count = 0, under_count = 0;
 	Plane plane_a(vertices_a[0], vertices_a[1], vertices_a[2]);
 	ERR_FAIL_COND_MSG(plane_a.normal == Vector3(), "Couldn't form plane from Brush A face.");
 
 	for (int i = 0; i < 3; i++) {
 		if (plane_a.has_point(vertices_b[i])) {
-			in_plane_count++;
+			// In plane.
 		} else if (plane_a.is_point_over(vertices_b[i])) {
 			over_count++;
 		} else {
@@ -1406,7 +1475,6 @@ void CSGBrushOperation::update_faces(const CSGBrush &p_brush_a, const int p_face
 	}
 
 	// Ensure A has points either side of or in the plane of B.
-	in_plane_count = 0;
 	over_count = 0;
 	under_count = 0;
 	Plane plane_b(vertices_b[0], vertices_b[1], vertices_b[2]);
@@ -1414,7 +1482,7 @@ void CSGBrushOperation::update_faces(const CSGBrush &p_brush_a, const int p_face
 
 	for (int i = 0; i < 3; i++) {
 		if (plane_b.has_point(vertices_a[i])) {
-			in_plane_count++;
+			// In plane.
 		} else if (plane_b.is_point_over(vertices_a[i])) {
 			over_count++;
 		} else {

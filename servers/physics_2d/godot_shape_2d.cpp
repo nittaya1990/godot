@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_shape_2d.cpp                                                   */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_shape_2d.cpp                                                    */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "godot_shape_2d.h"
 
@@ -37,7 +37,7 @@ void GodotShape2D::configure(const Rect2 &p_aabb) {
 	aabb = p_aabb;
 	configured = true;
 	for (const KeyValue<GodotShapeOwner2D *, int> &E : owners) {
-		GodotShapeOwner2D *co = (GodotShapeOwner2D *)E.key;
+		GodotShapeOwner2D *co = const_cast<GodotShapeOwner2D *>(E.key);
 		co->_shape_changed();
 	}
 }
@@ -50,20 +50,20 @@ Vector2 GodotShape2D::get_support(const Vector2 &p_normal) const {
 }
 
 void GodotShape2D::add_owner(GodotShapeOwner2D *p_owner) {
-	Map<GodotShapeOwner2D *, int>::Element *E = owners.find(p_owner);
+	HashMap<GodotShapeOwner2D *, int>::Iterator E = owners.find(p_owner);
 	if (E) {
-		E->get()++;
+		E->value++;
 	} else {
 		owners[p_owner] = 1;
 	}
 }
 
 void GodotShape2D::remove_owner(GodotShapeOwner2D *p_owner) {
-	Map<GodotShapeOwner2D *, int>::Element *E = owners.find(p_owner);
+	HashMap<GodotShapeOwner2D *, int>::Iterator E = owners.find(p_owner);
 	ERR_FAIL_COND(!E);
-	E->get()--;
-	if (E->get() == 0) {
-		owners.erase(E);
+	E->value--;
+	if (E->value == 0) {
+		owners.remove(E);
 	}
 }
 
@@ -71,7 +71,7 @@ bool GodotShape2D::is_owner(GodotShapeOwner2D *p_owner) const {
 	return owners.has(p_owner);
 }
 
-const Map<GodotShapeOwner2D *, int> &GodotShape2D::get_owners() const {
+const HashMap<GodotShapeOwner2D *, int> &GodotShape2D::get_owners() const {
 	return owners;
 }
 
@@ -123,7 +123,7 @@ void GodotWorldBoundaryShape2D::set_data(const Variant &p_data) {
 	ERR_FAIL_COND(arr.size() != 2);
 	normal = arr[0];
 	d = arr[1];
-	configure(Rect2(Vector2(-1e4, -1e4), Vector2(1e4 * 2, 1e4 * 2)));
+	configure(Rect2(Vector2(-1e15, -1e15), Vector2(1e15 * 2, 1e15 * 2)));
 }
 
 Variant GodotWorldBoundaryShape2D::get_data() const {
@@ -179,7 +179,7 @@ Variant GodotSeparationRayShape2D::get_data() const {
 /*********************************************************/
 
 void GodotSegmentShape2D::get_supports(const Vector2 &p_normal, Vector2 *r_supports, int &r_amount) const {
-	if (Math::abs(p_normal.dot(n)) > _SEGMENT_IS_VALID_SUPPORT_THRESHOLD) {
+	if (Math::abs(p_normal.dot(n)) > segment_is_valid_support_threshold) {
 		r_supports[0] = a;
 		r_supports[1] = b;
 		r_amount = 2;
@@ -225,16 +225,16 @@ void GodotSegmentShape2D::set_data(const Variant &p_data) {
 	b = r.size;
 	n = (b - a).orthogonal();
 
-	Rect2 aabb;
-	aabb.position = a;
-	aabb.expand_to(b);
-	if (aabb.size.x == 0) {
-		aabb.size.x = 0.001;
+	Rect2 aabb_new;
+	aabb_new.position = a;
+	aabb_new.expand_to(b);
+	if (aabb_new.size.x == 0) {
+		aabb_new.size.x = 0.001;
 	}
-	if (aabb.size.y == 0) {
-		aabb.size.y = 0.001;
+	if (aabb_new.size.y == 0) {
+		aabb_new.size.y = 0.001;
 	}
-	configure(aabb);
+	configure(aabb_new);
 }
 
 Variant GodotSegmentShape2D::get_data() const {
@@ -308,7 +308,7 @@ void GodotRectangleShape2D::get_supports(const Vector2 &p_normal, Vector2 *r_sup
 		Vector2 ag;
 		ag[i] = 1.0;
 		real_t dp = ag.dot(p_normal);
-		if (Math::abs(dp) < _SEGMENT_IS_VALID_SUPPORT_THRESHOLD) {
+		if (Math::abs(dp) <= segment_is_valid_support_threshold) {
 			continue;
 		}
 
@@ -368,25 +368,21 @@ Variant GodotRectangleShape2D::get_data() const {
 void GodotCapsuleShape2D::get_supports(const Vector2 &p_normal, Vector2 *r_supports, int &r_amount) const {
 	Vector2 n = p_normal;
 
-	real_t d = n.y;
+	real_t h = height * 0.5 - radius; // half-height of the rectangle part
 
-	if (Math::abs(d) < (1.0 - _SEGMENT_IS_VALID_SUPPORT_THRESHOLD)) {
+	if (h > 0 && Math::abs(n.x) > segment_is_valid_support_threshold) {
 		// make it flat
 		n.y = 0.0;
-		n.normalize();
-		n *= radius;
+		n.x = SIGN(n.x) * radius;
 
 		r_amount = 2;
 		r_supports[0] = n;
-		r_supports[0].y += height * 0.5 - radius;
+		r_supports[0].y += h;
 		r_supports[1] = n;
-		r_supports[1].y -= height * 0.5 - radius;
-
+		r_supports[1].y -= h;
 	} else {
-		real_t h = height * 0.5 - radius;
-
 		n *= radius;
-		n.y += (d > 0) ? h : -h;
+		n.y += (n.y > 0) ? h : -h;
 		r_amount = 1;
 		*r_supports = n;
 	}
@@ -508,7 +504,7 @@ void GodotConvexPolygonShape2D::get_supports(const Vector2 &p_normal, Vector2 *r
 		}
 
 		//test segment
-		if (points[i].normal.dot(p_normal) > _SEGMENT_IS_VALID_SUPPORT_THRESHOLD) {
+		if (points[i].normal.dot(p_normal) > segment_is_valid_support_threshold) {
 			r_amount = 2;
 			r_supports[0] = points[i].pos;
 			r_supports[1] = points[(i + 1) % point_count].pos;
@@ -544,12 +540,6 @@ bool GodotConvexPolygonShape2D::intersect_segment(const Vector2 &p_begin, const 
 	bool inters = false;
 
 	for (int i = 0; i < point_count; i++) {
-		//hmm.. no can do..
-		/*
-		if (d.dot(points[i].normal)>=0)
-			continue;
-		*/
-
 		Vector2 res;
 
 		if (!Geometry2D::segment_intersects_segment(p_begin, p_end, points[i].pos, points[(i + 1) % point_count].pos, &res)) {
@@ -570,13 +560,13 @@ bool GodotConvexPolygonShape2D::intersect_segment(const Vector2 &p_begin, const 
 
 real_t GodotConvexPolygonShape2D::get_moment_of_inertia(real_t p_mass, const Size2 &p_scale) const {
 	ERR_FAIL_COND_V_MSG(point_count == 0, 0, "Convex polygon shape has no points.");
-	Rect2 aabb;
-	aabb.position = points[0].pos * p_scale;
+	Rect2 aabb_new;
+	aabb_new.position = points[0].pos * p_scale;
 	for (int i = 0; i < point_count; i++) {
-		aabb.expand_to(points[i].pos * p_scale);
+		aabb_new.expand_to(points[i].pos * p_scale);
 	}
 
-	return p_mass * aabb.size.dot(aabb.size) / 12.0;
+	return p_mass * aabb_new.size.dot(aabb_new.size) / 12.0;
 }
 
 void GodotConvexPolygonShape2D::set_data(const Variant &p_data) {
@@ -594,7 +584,7 @@ void GodotConvexPolygonShape2D::set_data(const Variant &p_data) {
 
 	if (p_data.get_type() == Variant::PACKED_VECTOR2_ARRAY) {
 		Vector<Vector2> arr = p_data;
-		ERR_FAIL_COND(arr.size() == 0);
+		ERR_FAIL_COND(arr.is_empty());
 		point_count = arr.size();
 		points = memnew_arr(Point, point_count);
 		const Vector2 *r = arr.ptr();
@@ -626,13 +616,13 @@ void GodotConvexPolygonShape2D::set_data(const Variant &p_data) {
 	}
 
 	ERR_FAIL_COND(point_count == 0);
-	Rect2 aabb;
-	aabb.position = points[0].pos;
+	Rect2 aabb_new;
+	aabb_new.position = points[0].pos;
 	for (int i = 1; i < point_count; i++) {
-		aabb.expand_to(points[i].pos);
+		aabb_new.expand_to(points[i].pos);
 	}
 
-	configure(aabb);
+	configure(aabb_new);
 }
 
 Variant GodotConvexPolygonShape2D::get_data() const {
@@ -711,18 +701,18 @@ bool GodotConcavePolygonShape2D::intersect_segment(const Vector2 &p_begin, const
 	stack[0] = 0;
 	while (true) {
 		uint32_t node = stack[level] & NODE_IDX_MASK;
-		const BVH &bvh = bvhptr[node];
+		const BVH &bvh2 = bvhptr[node];
 		bool done = false;
 
 		switch (stack[level] >> VISITED_BIT_SHIFT) {
 			case TEST_AABB_BIT: {
-				bool valid = bvh.aabb.intersects_segment(p_begin, p_end);
+				bool valid = bvh2.aabb.intersects_segment(p_begin, p_end);
 				if (!valid) {
 					stack[level] = (VISIT_DONE_BIT << VISITED_BIT_SHIFT) | node;
 
 				} else {
-					if (bvh.left < 0) {
-						const Segment &s = segmentptr[bvh.right];
+					if (bvh2.left < 0) {
+						const Segment &s = segmentptr[bvh2.right];
 						Vector2 a = pointptr[s.points[0]];
 						Vector2 b = pointptr[s.points[1]];
 
@@ -748,13 +738,13 @@ bool GodotConcavePolygonShape2D::intersect_segment(const Vector2 &p_begin, const
 				continue;
 			case VISIT_LEFT_BIT: {
 				stack[level] = (VISIT_RIGHT_BIT << VISITED_BIT_SHIFT) | node;
-				stack[level + 1] = bvh.left | TEST_AABB_BIT;
+				stack[level + 1] = bvh2.left | TEST_AABB_BIT;
 				level++;
 			}
 				continue;
 			case VISIT_RIGHT_BIT: {
 				stack[level] = (VISIT_DONE_BIT << VISITED_BIT_SHIFT) | node;
-				stack[level + 1] = bvh.right | TEST_AABB_BIT;
+				stack[level + 1] = bvh2.right | TEST_AABB_BIT;
 				level++;
 			}
 				continue;
@@ -828,7 +818,7 @@ void GodotConcavePolygonShape2D::set_data(const Variant &p_data) {
 	ERR_FAIL_COND(p_data.get_type() != Variant::PACKED_VECTOR2_ARRAY && p_data.get_type() != Variant::PACKED_FLOAT32_ARRAY);
 #endif
 
-	Rect2 aabb;
+	Rect2 aabb_new;
 
 	if (p_data.get_type() == Variant::PACKED_VECTOR2_ARRAY) {
 		Vector<Vector2> p2arr = p_data;
@@ -841,13 +831,13 @@ void GodotConcavePolygonShape2D::set_data(const Variant &p_data) {
 		bvh_depth = 1;
 
 		if (len == 0) {
-			configure(aabb);
+			configure(aabb_new);
 			return;
 		}
 
 		const Vector2 *arr = p2arr.ptr();
 
-		Map<Point2, int> pointmap;
+		HashMap<Point2, int> pointmap;
 		for (int i = 0; i < len; i += 2) {
 			Point2 p1 = arr[i];
 			Point2 p2 = arr[i + 1];
@@ -874,9 +864,9 @@ void GodotConcavePolygonShape2D::set_data(const Variant &p_data) {
 		}
 
 		points.resize(pointmap.size());
-		aabb.position = pointmap.front()->key();
+		aabb_new.position = pointmap.begin()->key;
 		for (const KeyValue<Point2, int> &E : pointmap) {
-			aabb.expand_to(E.key);
+			aabb_new.expand_to(E.key);
 			points.write[E.value] = E.key;
 		}
 
@@ -895,7 +885,7 @@ void GodotConcavePolygonShape2D::set_data(const Variant &p_data) {
 		//dictionary with arrays
 	}
 
-	configure(aabb);
+	configure(aabb_new);
 }
 
 Variant GodotConcavePolygonShape2D::get_data() const {
@@ -943,17 +933,17 @@ void GodotConcavePolygonShape2D::cull(const Rect2 &p_local_aabb, QueryCallback p
 	stack[0] = 0;
 	while (true) {
 		uint32_t node = stack[level] & NODE_IDX_MASK;
-		const BVH &bvh = bvhptr[node];
+		const BVH &bvh2 = bvhptr[node];
 
 		switch (stack[level] >> VISITED_BIT_SHIFT) {
 			case TEST_AABB_BIT: {
-				bool valid = p_local_aabb.intersects(bvh.aabb);
+				bool valid = p_local_aabb.intersects(bvh2.aabb);
 				if (!valid) {
 					stack[level] = (VISIT_DONE_BIT << VISITED_BIT_SHIFT) | node;
 
 				} else {
-					if (bvh.left < 0) {
-						const Segment &s = segmentptr[bvh.right];
+					if (bvh2.left < 0) {
+						const Segment &s = segmentptr[bvh2.right];
 						Vector2 a = pointptr[s.points[0]];
 						Vector2 b = pointptr[s.points[1]];
 
@@ -972,13 +962,13 @@ void GodotConcavePolygonShape2D::cull(const Rect2 &p_local_aabb, QueryCallback p
 				continue;
 			case VISIT_LEFT_BIT: {
 				stack[level] = (VISIT_RIGHT_BIT << VISITED_BIT_SHIFT) | node;
-				stack[level + 1] = bvh.left | TEST_AABB_BIT;
+				stack[level + 1] = bvh2.left | TEST_AABB_BIT;
 				level++;
 			}
 				continue;
 			case VISIT_RIGHT_BIT: {
 				stack[level] = (VISIT_DONE_BIT << VISITED_BIT_SHIFT) | node;
-				stack[level + 1] = bvh.right | TEST_AABB_BIT;
+				stack[level + 1] = bvh2.right | TEST_AABB_BIT;
 				level++;
 			}
 				continue;

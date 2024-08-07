@@ -1,35 +1,36 @@
-/*************************************************************************/
-/*  godot_step_2d.cpp                                                    */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_step_2d.cpp                                                     */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "godot_step_2d.h"
 
+#include "core/object/worker_thread_pool.h"
 #include "core/os/os.h"
 
 #define BODY_ISLAND_COUNT_RESERVE 128
@@ -42,12 +43,12 @@ void GodotStep2D::_populate_island(GodotBody2D *p_body, LocalVector<GodotBody2D 
 	p_body->set_island_step(_step);
 
 	if (p_body->get_mode() > PhysicsServer2D::BODY_MODE_KINEMATIC) {
-		// Only dynamic bodies are tested for activation.
+		// Only rigid bodies are tested for activation.
 		p_body_island.push_back(p_body);
 	}
 
 	for (const Pair<GodotConstraint2D *, int> &E : p_body->get_constraint_list()) {
-		GodotConstraint2D *constraint = (GodotConstraint2D *)E.first;
+		GodotConstraint2D *constraint = const_cast<GodotConstraint2D *>(E.first);
 		if (constraint->get_island_step() == _step) {
 			continue; // Already processed.
 		}
@@ -71,7 +72,7 @@ void GodotStep2D::_populate_island(GodotBody2D *p_body, LocalVector<GodotBody2D 
 	}
 }
 
-void GodotStep2D::_setup_contraint(uint32_t p_constraint_index, void *p_userdata) {
+void GodotStep2D::_setup_constraint(uint32_t p_constraint_index, void *p_userdata) {
 	GodotConstraint2D *constraint = all_constraints[p_constraint_index];
 	constraint->setup(delta);
 }
@@ -124,14 +125,14 @@ void GodotStep2D::_check_suspend(LocalVector<GodotBody2D *> &p_body_island) cons
 	}
 }
 
-void GodotStep2D::step(GodotSpace2D *p_space, real_t p_delta, int p_iterations) {
+void GodotStep2D::step(GodotSpace2D *p_space, real_t p_delta) {
 	p_space->lock(); // can't access space during this
 
 	p_space->setup(); //update inertias, etc
 
 	p_space->set_last_step(p_delta);
 
-	iterations = p_iterations;
+	iterations = p_space->get_solver_iterations();
 	delta = p_delta;
 
 	const SelfList<GodotBody2D>::List *body_list = &p_space->get_active_body_list();
@@ -152,6 +153,9 @@ void GodotStep2D::step(GodotSpace2D *p_space, real_t p_delta, int p_iterations) 
 
 	p_space->set_active_objects(active_count);
 
+	// Update the broadphase to register collision pairs.
+	p_space->update();
+
 	{ //profile
 		profile_endtime = OS::get_singleton()->get_ticks_usec();
 		p_space->set_elapsed_time(GodotSpace2D::ELAPSED_TIME_INTEGRATE_FORCES, profile_endtime - profile_begtime);
@@ -165,8 +169,8 @@ void GodotStep2D::step(GodotSpace2D *p_space, real_t p_delta, int p_iterations) 
 	const SelfList<GodotArea2D>::List &aml = p_space->get_moved_area_list();
 
 	while (aml.first()) {
-		for (const Set<GodotConstraint2D *>::Element *E = aml.first()->self()->get_constraints().front(); E; E = E->next()) {
-			GodotConstraint2D *constraint = E->get();
+		for (GodotConstraint2D *E : aml.first()->self()->get_constraints()) {
+			GodotConstraint2D *constraint = E;
 			if (constraint->get_island_step() == _step) {
 				continue;
 			}
@@ -235,8 +239,9 @@ void GodotStep2D::step(GodotSpace2D *p_space, real_t p_delta, int p_iterations) 
 
 	/* SETUP CONSTRAINTS / PROCESS COLLISIONS */
 
-	uint32_t total_contraint_count = all_constraints.size();
-	work_pool.do_work(total_contraint_count, this, &GodotStep2D::_setup_contraint, nullptr);
+	uint32_t total_constraint_count = all_constraints.size();
+	WorkerThreadPool::GroupID group_task = WorkerThreadPool::get_singleton()->add_template_group_task(this, &GodotStep2D::_setup_constraint, nullptr, total_constraint_count, -1, true, SNAME("Physics2DConstraintSetup"));
+	WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
 
 	{ //profile
 		profile_endtime = OS::get_singleton()->get_ticks_usec();
@@ -255,7 +260,8 @@ void GodotStep2D::step(GodotSpace2D *p_space, real_t p_delta, int p_iterations) 
 
 	// Warning: _solve_island modifies the constraint islands for optimization purpose,
 	// their content is not reliable after these calls and shouldn't be used anymore.
-	work_pool.do_work(island_count, this, &GodotStep2D::_solve_island, nullptr);
+	group_task = WorkerThreadPool::get_singleton()->add_template_group_task(this, &GodotStep2D::_solve_island, nullptr, island_count, -1, true, SNAME("Physics2DConstraintSolveIslands"));
+	WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
 
 	{ //profile
 		profile_endtime = OS::get_singleton()->get_ticks_usec();
@@ -286,7 +292,6 @@ void GodotStep2D::step(GodotSpace2D *p_space, real_t p_delta, int p_iterations) 
 
 	all_constraints.clear();
 
-	p_space->update();
 	p_space->unlock();
 	_step++;
 }
@@ -295,10 +300,7 @@ GodotStep2D::GodotStep2D() {
 	body_islands.reserve(BODY_ISLAND_COUNT_RESERVE);
 	constraint_islands.reserve(ISLAND_COUNT_RESERVE);
 	all_constraints.reserve(CONSTRAINT_COUNT_RESERVE);
-
-	work_pool.init();
 }
 
 GodotStep2D::~GodotStep2D() {
-	work_pool.finish();
 }

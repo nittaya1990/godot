@@ -7,13 +7,11 @@ namespace GodotTools.BuildLogger
 {
     public class GodotBuildLogger : ILogger
     {
-        public static readonly string AssemblyPath = Path.GetFullPath(typeof(GodotBuildLogger).Assembly.Location);
-
-        public string Parameters { get; set; }
+        public string? Parameters { get; set; }
         public LoggerVerbosity Verbosity { get; set; }
 
-        private StreamWriter _logStreamWriter;
-        private StreamWriter _issuesStreamWriter;
+        private StreamWriter _logStreamWriter = StreamWriter.Null;
+        private StreamWriter _issuesStreamWriter = StreamWriter.Null;
         private int _indent;
 
         public void Initialize(IEventSource eventSource)
@@ -167,7 +165,7 @@ namespace GodotTools.BuildLogger
             bool hasSpecialChar = value.IndexOfAny(new[] { '\"', '\n', '\r', delimiter }) != -1;
 
             if (hasSpecialChar)
-                return "\"" + value.Replace("\"", "\"\"") + "\"";
+                return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 
             return value;
         }

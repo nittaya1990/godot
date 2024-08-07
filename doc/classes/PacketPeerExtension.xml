@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="PacketPeerExtension" inherits="PacketPeer" version="4.0">
+<class name="PacketPeerExtension" inherits="PacketPeer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 	<brief_description>
 	</brief_description>
 	<description>
@@ -18,16 +18,16 @@
 			</description>
 		</method>
 		<method name="_get_packet" qualifiers="virtual">
-			<return type="int" />
-			<argument index="0" name="r_buffer" type="const uint8_t **" />
-			<argument index="1" name="r_buffer_size" type="int32_t*" />
+			<return type="int" enum="Error" />
+			<param index="0" name="r_buffer" type="const uint8_t **" />
+			<param index="1" name="r_buffer_size" type="int32_t*" />
 			<description>
 			</description>
 		</method>
 		<method name="_put_packet" qualifiers="virtual">
-			<return type="int" />
-			<argument index="0" name="p_buffer" type="const uint8_t*" />
-			<argument index="1" name="p_buffer_size" type="int" />
+			<return type="int" enum="Error" />
+			<param index="0" name="p_buffer" type="const uint8_t*" />
+			<param index="1" name="p_buffer_size" type="int" />
 			<description>
 			</description>
 		</method>

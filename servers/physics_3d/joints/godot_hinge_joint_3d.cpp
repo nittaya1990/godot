@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_hinge_joint_3d.cpp                                             */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_hinge_joint_3d.cpp                                              */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 /*
 Adapted to Godot from the Bullet library.
@@ -48,24 +48,6 @@ subject to the following restrictions:
 */
 
 #include "godot_hinge_joint_3d.h"
-
-static void plane_space(const Vector3 &n, Vector3 &p, Vector3 &q) {
-	if (Math::abs(n.z) > Math_SQRT12) {
-		// choose p in y-z plane
-		real_t a = n[1] * n[1] + n[2] * n[2];
-		real_t k = 1.0 / Math::sqrt(a);
-		p = Vector3(0, -n[2] * k, n[1] * k);
-		// set q = n x p
-		q = Vector3(a * k, -n[0] * p[2], n[0] * p[1]);
-	} else {
-		// choose p in x-y plane
-		real_t a = n.x * n.x + n.y * n.y;
-		real_t k = 1.0 / Math::sqrt(a);
-		p = Vector3(-n.y * k, n.x * k, 0);
-		// set q = n x p
-		q = Vector3(-n.z * p.y, n.z * p.x, a * k);
-	}
-}
 
 GodotHingeJoint3D::GodotHingeJoint3D(GodotBody3D *rbA, GodotBody3D *rbB, const Transform3D &frameA, const Transform3D &frameB) :
 		GodotJoint3D(_arr, 2) {
@@ -92,16 +74,16 @@ GodotHingeJoint3D::GodotHingeJoint3D(GodotBody3D *rbA, GodotBody3D *rbB, const V
 	m_rbAFrame.origin = pivotInA;
 
 	// since no frame is given, assume this to be zero angle and just pick rb transform axis
-	Vector3 rbAxisA1 = rbA->get_transform().basis.get_axis(0);
+	Vector3 rbAxisA1 = rbA->get_transform().basis.get_column(0);
 
 	Vector3 rbAxisA2;
 	real_t projection = axisInA.dot(rbAxisA1);
 	if (projection >= 1.0f - CMP_EPSILON) {
-		rbAxisA1 = -rbA->get_transform().basis.get_axis(2);
-		rbAxisA2 = rbA->get_transform().basis.get_axis(1);
+		rbAxisA1 = -rbA->get_transform().basis.get_column(2);
+		rbAxisA2 = rbA->get_transform().basis.get_column(1);
 	} else if (projection <= -1.0f + CMP_EPSILON) {
-		rbAxisA1 = rbA->get_transform().basis.get_axis(2);
-		rbAxisA2 = rbA->get_transform().basis.get_axis(1);
+		rbAxisA1 = rbA->get_transform().basis.get_column(2);
+		rbAxisA2 = rbA->get_transform().basis.get_column(1);
 	} else {
 		rbAxisA2 = axisInA.cross(rbAxisA1);
 		rbAxisA1 = rbAxisA2.cross(axisInA);
@@ -171,11 +153,11 @@ bool GodotHingeJoint3D::setup(real_t p_step) {
 	Vector3 jointAxis0local;
 	Vector3 jointAxis1local;
 
-	plane_space(m_rbAFrame.basis.get_axis(2), jointAxis0local, jointAxis1local);
+	plane_space(m_rbAFrame.basis.get_column(2), jointAxis0local, jointAxis1local);
 
 	Vector3 jointAxis0 = A->get_transform().basis.xform(jointAxis0local);
 	Vector3 jointAxis1 = A->get_transform().basis.xform(jointAxis1local);
-	Vector3 hingeAxisWorld = A->get_transform().basis.xform(m_rbAFrame.basis.get_axis(2));
+	Vector3 hingeAxisWorld = A->get_transform().basis.xform(m_rbAFrame.basis.get_column(2));
 
 	memnew_placement(
 			&m_jacAng[0],
@@ -213,16 +195,12 @@ bool GodotHingeJoint3D::setup(real_t p_step) {
 	m_solveLimit = false;
 	m_accLimitImpulse = real_t(0.);
 
-	//if (m_lowerLimit < m_upperLimit)
 	if (m_useLimit && m_lowerLimit <= m_upperLimit) {
-		//if (hingeAngle <= m_lowerLimit*m_limitSoftness)
 		if (hingeAngle <= m_lowerLimit) {
 			m_correction = (m_lowerLimit - hingeAngle);
 			m_limitSign = 1.0f;
 			m_solveLimit = true;
-		}
-		//else if (hingeAngle >= m_upperLimit*m_limitSoftness)
-		else if (hingeAngle >= m_upperLimit) {
+		} else if (hingeAngle >= m_upperLimit) {
 			m_correction = m_upperLimit - hingeAngle;
 			m_limitSign = -1.0f;
 			m_solveLimit = true;
@@ -230,7 +208,7 @@ bool GodotHingeJoint3D::setup(real_t p_step) {
 	}
 
 	//Compute K = J*W*J' for hinge axis
-	Vector3 axisA = A->get_transform().basis.xform(m_rbAFrame.basis.get_axis(2));
+	Vector3 axisA = A->get_transform().basis.xform(m_rbAFrame.basis.get_column(2));
 	m_kHinge = 1.0f / (A->compute_angular_impulse_denominator(axisA) + B->compute_angular_impulse_denominator(axisA));
 
 	return true;
@@ -275,8 +253,8 @@ void GodotHingeJoint3D::solve(real_t p_step) {
 		///solve angular part
 
 		// get axes in world space
-		Vector3 axisA = A->get_transform().basis.xform(m_rbAFrame.basis.get_axis(2));
-		Vector3 axisB = B->get_transform().basis.xform(m_rbBFrame.basis.get_axis(2));
+		Vector3 axisA = A->get_transform().basis.xform(m_rbAFrame.basis.get_column(2));
+		Vector3 axisB = B->get_transform().basis.xform(m_rbBFrame.basis.get_column(2));
 
 		const Vector3 &angVelA = A->get_angular_velocity();
 		const Vector3 &angVelB = B->get_angular_velocity();
@@ -372,25 +350,10 @@ void	HingeJointSW::updateRHS(real_t	timeStep)
 
 */
 
-static _FORCE_INLINE_ real_t atan2fast(real_t y, real_t x) {
-	real_t coeff_1 = Math_PI / 4.0f;
-	real_t coeff_2 = 3.0f * coeff_1;
-	real_t abs_y = Math::abs(y);
-	real_t angle;
-	if (x >= 0.0f) {
-		real_t r = (x - abs_y) / (x + abs_y);
-		angle = coeff_1 - coeff_1 * r;
-	} else {
-		real_t r = (x + abs_y) / (abs_y - x);
-		angle = coeff_2 - coeff_1 * r;
-	}
-	return (y < 0.0f) ? -angle : angle;
-}
-
 real_t GodotHingeJoint3D::get_hinge_angle() {
-	const Vector3 refAxis0 = A->get_transform().basis.xform(m_rbAFrame.basis.get_axis(0));
-	const Vector3 refAxis1 = A->get_transform().basis.xform(m_rbAFrame.basis.get_axis(1));
-	const Vector3 swingAxis = B->get_transform().basis.xform(m_rbBFrame.basis.get_axis(1));
+	const Vector3 refAxis0 = A->get_transform().basis.xform(m_rbAFrame.basis.get_column(0));
+	const Vector3 refAxis1 = A->get_transform().basis.xform(m_rbAFrame.basis.get_column(1));
+	const Vector3 swingAxis = B->get_transform().basis.xform(m_rbBFrame.basis.get_column(1));
 
 	return atan2fast(swingAxis.dot(refAxis0), swingAxis.dot(refAxis1));
 }

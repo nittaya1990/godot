@@ -1,35 +1,35 @@
-/*************************************************************************/
-/*  cpu_particles_3d.h                                                   */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  cpu_particles_3d.h                                                    */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
-#ifndef CPU_PARTICLES_H
-#define CPU_PARTICLES_H
+#ifndef CPU_PARTICLES_3D_H
+#define CPU_PARTICLES_3D_H
 
 #include "scene/3d/visual_instance_3d.h"
 
@@ -71,6 +71,7 @@ public:
 	enum EmissionShape {
 		EMISSION_SHAPE_POINT,
 		EMISSION_SHAPE_SPHERE,
+		EMISSION_SHAPE_SPHERE_SURFACE,
 		EMISSION_SHAPE_BOX,
 		EMISSION_SHAPE_POINTS,
 		EMISSION_SHAPE_DIRECTED_POINTS,
@@ -80,6 +81,7 @@ public:
 
 private:
 	bool emitting = false;
+	bool active = false;
 
 	struct Particle {
 		Transform3D transform;
@@ -91,6 +93,7 @@ private:
 		real_t scale_rand = 0.0;
 		real_t hue_rot_rand = 0.0;
 		real_t anim_offset_rand = 0.0;
+		Color start_color_rand;
 		double time = 0.0;
 		double lifetime = 0.0;
 		Color base_color;
@@ -99,7 +102,6 @@ private:
 	};
 
 	double time = 0.0;
-	double inactive_time = 0.0;
 	double frame_remainder = 0.0;
 	int cycle = 0;
 	bool redraw = false;
@@ -136,7 +138,8 @@ private:
 	real_t randomness_ratio = 0.0;
 	double lifetime_randomness = 0.0;
 	double speed_scale = 1.0;
-	bool local_coords = true;
+	AABB visibility_aabb;
+	bool local_coords = false;
 	int fixed_fps = 0;
 	bool fractional_delta = true;
 
@@ -154,12 +157,13 @@ private:
 	real_t spread = 45.0;
 	real_t flatness = 0.0;
 
-	real_t parameters_min[PARAM_MAX];
+	real_t parameters_min[PARAM_MAX] = {};
 	real_t parameters_max[PARAM_MAX] = {};
 
 	Ref<Curve> curve_parameters[PARAM_MAX];
 	Color color = Color(1, 1, 1, 1);
 	Ref<Gradient> color_ramp;
+	Ref<Gradient> color_initial_ramp;
 
 	bool particle_flags[PARTICLE_FLAG_MAX] = {};
 
@@ -171,9 +175,9 @@ private:
 	Vector<Color> emission_colors;
 	int emission_point_count = 0;
 	Vector3 emission_ring_axis;
-	real_t emission_ring_height;
-	real_t emission_ring_radius;
-	real_t emission_ring_inner_radius;
+	real_t emission_ring_height = 0.0;
+	real_t emission_ring_radius = 0.0;
+	real_t emission_ring_inner_radius = 0.0;
 
 	Ref<Curve> scale_curve_x;
 	Ref<Curve> scale_curve_y;
@@ -195,11 +199,10 @@ private:
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
-	virtual void _validate_property(PropertyInfo &property) const override;
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	AABB get_aabb() const override;
-	Vector<Face3> get_faces(uint32_t p_usage_flags) const override;
 
 	void set_emitting(bool p_emitting);
 	void set_amount(int p_amount);
@@ -208,6 +211,7 @@ public:
 	void set_pre_process_time(double p_time);
 	void set_explosiveness_ratio(real_t p_ratio);
 	void set_randomness_ratio(real_t p_ratio);
+	void set_visibility_aabb(const AABB &p_aabb);
 	void set_lifetime_randomness(double p_random);
 	void set_use_local_coordinates(bool p_enable);
 	void set_speed_scale(double p_scale);
@@ -219,6 +223,7 @@ public:
 	double get_pre_process_time() const;
 	real_t get_explosiveness_ratio() const;
 	real_t get_randomness_ratio() const;
+	AABB get_visibility_aabb() const;
 	double get_lifetime_randomness() const;
 	bool get_use_local_coordinates() const;
 	double get_speed_scale() const;
@@ -261,6 +266,9 @@ public:
 	void set_color_ramp(const Ref<Gradient> &p_ramp);
 	Ref<Gradient> get_color_ramp() const;
 
+	void set_color_initial_ramp(const Ref<Gradient> &p_ramp);
+	Ref<Gradient> get_color_initial_ramp() const;
+
 	void set_particle_flag(ParticleFlags p_particle_flag, bool p_enable);
 	bool get_particle_flag(ParticleFlags p_particle_flag) const;
 
@@ -297,11 +305,13 @@ public:
 	void set_gravity(const Vector3 &p_gravity);
 	Vector3 get_gravity() const;
 
-	TypedArray<String> get_configuration_warnings() const override;
+	PackedStringArray get_configuration_warnings() const override;
 
 	void restart();
 
 	void convert_from_particles(Node *p_particles);
+
+	AABB capture_aabb() const;
 
 	CPUParticles3D();
 	~CPUParticles3D();
@@ -312,4 +322,4 @@ VARIANT_ENUM_CAST(CPUParticles3D::Parameter)
 VARIANT_ENUM_CAST(CPUParticles3D::ParticleFlags)
 VARIANT_ENUM_CAST(CPUParticles3D::EmissionShape)
 
-#endif // CPU_PARTICLES_H
+#endif // CPU_PARTICLES_3D_H

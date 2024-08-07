@@ -1,46 +1,53 @@
-/*************************************************************************/
-/*  gpu_particles_3d_editor_plugin.cpp                                   */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  gpu_particles_3d_editor_plugin.cpp                                    */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "gpu_particles_3d_editor_plugin.h"
 
 #include "core/io/resource_loader.h"
+#include "editor/editor_node.h"
+#include "editor/editor_settings.h"
+#include "editor/editor_undo_redo_manager.h"
 #include "editor/plugins/node_3d_editor_plugin.h"
+#include "editor/scene_tree_dock.h"
 #include "scene/3d/cpu_particles_3d.h"
-#include "scene/resources/particles_material.h"
+#include "scene/3d/mesh_instance_3d.h"
+#include "scene/gui/menu_button.h"
+#include "scene/resources/image_texture.h"
+#include "scene/resources/particle_process_material.h"
 
 bool GPUParticles3DEditorBase::_generate(Vector<Vector3> &points, Vector<Vector3> &normals) {
 	bool use_normals = emission_fill->get_selected() == 1;
 
 	if (emission_fill->get_selected() < 2) {
 		float area_accum = 0;
-		Map<float, int> triangle_area_map;
+		RBMap<float, int> triangle_area_map;
 
 		for (int i = 0; i < geometry.size(); i++) {
 			float area = geometry[i].get_area();
@@ -61,9 +68,9 @@ bool GPUParticles3DEditorBase::_generate(Vector<Vector3> &points, Vector<Vector3
 		for (int i = 0; i < emissor_count; i++) {
 			float areapos = Math::random(0.0f, area_accum);
 
-			Map<float, int>::Element *E = triangle_area_map.find_closest(areapos);
+			RBMap<float, int>::Iterator E = triangle_area_map.find_closest(areapos);
 			ERR_FAIL_COND_V(!E, false);
-			int index = E->get();
+			int index = E->value;
 			ERR_FAIL_INDEX_V(index, geometry.size(), false);
 
 			// ok FINALLY get face
@@ -164,20 +171,20 @@ void GPUParticles3DEditorBase::_node_selected(const NodePath &p_path) {
 		return;
 	}
 
-	VisualInstance3D *vi = Object::cast_to<VisualInstance3D>(sel);
-	if (!vi) {
+	MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(sel);
+	if (!mi || mi->get_mesh().is_null()) {
 		EditorNode::get_singleton()->show_warning(vformat(TTR("\"%s\" doesn't contain geometry."), sel->get_name()));
 		return;
 	}
 
-	geometry = vi->get_faces(VisualInstance3D::FACES_SOLID);
+	geometry = mi->get_mesh()->get_faces();
 
 	if (geometry.size() == 0) {
 		EditorNode::get_singleton()->show_warning(vformat(TTR("\"%s\" doesn't contain face geometry."), sel->get_name()));
 		return;
 	}
 
-	Transform3D geom_xform = base_node->get_global_transform().affine_inverse() * vi->get_global_transform();
+	Transform3D geom_xform = base_node->get_global_transform().affine_inverse() * mi->get_global_transform();
 
 	int gc = geometry.size();
 	Face3 *w = geometry.ptrw();
@@ -211,12 +218,15 @@ GPUParticles3DEditorBase::GPUParticles3DEditorBase() {
 	emission_fill->add_item(TTR("Surface Points"));
 	emission_fill->add_item(TTR("Surface Points+Normal (Directed)"));
 	emission_fill->add_item(TTR("Volume"));
-	emd_vb->add_margin_child(TTR("Emission Source: "), emission_fill);
+	emd_vb->add_margin_child(TTR("Emission Source:"), emission_fill);
 
-	emission_dialog->get_ok_button()->set_text(TTR("Create"));
-	emission_dialog->connect("confirmed", callable_mp(this, &GPUParticles3DEditorBase::_generate_emission_points));
+	emission_dialog->set_ok_button_text(TTR("Create"));
+	emission_dialog->connect(SceneStringName(confirmed), callable_mp(this, &GPUParticles3DEditorBase::_generate_emission_points));
 
 	emission_tree_dialog = memnew(SceneTreeDialog);
+	Vector<StringName> valid_types;
+	valid_types.push_back("MeshInstance3D");
+	emission_tree_dialog->set_valid_types(valid_types);
 	add_child(emission_tree_dialog);
 	emission_tree_dialog->connect("selected", callable_mp(this, &GPUParticles3DEditorBase::_node_selected));
 }
@@ -229,9 +239,11 @@ void GPUParticles3DEditor::_node_removed(Node *p_node) {
 }
 
 void GPUParticles3DEditor::_notification(int p_notification) {
-	if (p_notification == NOTIFICATION_ENTER_TREE) {
-		options->set_icon(options->get_popup()->get_theme_icon(SNAME("GPUParticles3D"), SNAME("EditorIcons")));
-		get_tree()->connect("node_removed", callable_mp(this, &GPUParticles3DEditor::_node_removed));
+	switch (p_notification) {
+		case NOTIFICATION_ENTER_TREE: {
+			options->set_icon(options->get_popup()->get_editor_theme_icon(SNAME("GPUParticles3D")));
+			get_tree()->connect("node_removed", callable_mp(this, &GPUParticles3DEditor::_node_removed));
+		} break;
 	}
 }
 
@@ -250,9 +262,9 @@ void GPUParticles3DEditor::_menu_option(int p_option) {
 			}
 		} break;
 		case MENU_OPTION_CREATE_EMISSION_VOLUME_FROM_NODE: {
-			Ref<ParticlesMaterial> material = node->get_process_material();
-			if (material.is_null()) {
-				EditorNode::get_singleton()->show_warning(TTR("A processor material of type 'ParticlesMaterial' is required."));
+			Ref<ParticleProcessMaterial> mat = node->get_process_material();
+			if (mat.is_null()) {
+				EditorNode::get_singleton()->show_warning(TTR("A processor material of type 'ParticleProcessMaterial' is required."));
 				return;
 			}
 
@@ -267,13 +279,10 @@ void GPUParticles3DEditor::_menu_option(int p_option) {
 			cpu_particles->set_visible(node->is_visible());
 			cpu_particles->set_process_mode(node->get_process_mode());
 
-			UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
-			ur->create_action(TTR("Convert to CPUParticles3D"));
-			ur->add_do_method(EditorNode::get_singleton()->get_scene_tree_dock(), "replace_node", node, cpu_particles, true, false);
-			ur->add_do_reference(cpu_particles);
-			ur->add_undo_method(EditorNode::get_singleton()->get_scene_tree_dock(), "replace_node", cpu_particles, node, false, false);
-			ur->add_undo_reference(node);
-			ur->commit_action();
+			EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
+			ur->create_action(TTR("Convert to CPUParticles3D"), UndoRedo::MERGE_DISABLE, node);
+			SceneTreeDock::get_singleton()->replace_node(node, cpu_particles);
+			ur->commit_action(false);
 
 		} break;
 		case MENU_OPTION_RESTART: {
@@ -300,7 +309,7 @@ void GPUParticles3DEditor::_generate_aabb() {
 
 	while (running < time) {
 		uint64_t ticks = OS::get_singleton()->get_ticks_usec();
-		ep.step("Generating...", int(running), true);
+		ep.step(TTR("Generating..."), int(running), true);
 		OS::get_singleton()->delay_usec(1000);
 
 		AABB capture = node->capture_aabb();
@@ -317,7 +326,7 @@ void GPUParticles3DEditor::_generate_aabb() {
 		node->set_emitting(false);
 	}
 
-	UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Generate Visibility AABB"));
 	ur->add_do_method(node, "set_visibility_aabb", rect);
 	ur->add_undo_method(node, "set_visibility_aabb", node->get_visibility_aabb());
@@ -350,7 +359,7 @@ void GPUParticles3DEditor::_generate_emission_points() {
 		uint8_t *iw = point_img.ptrw();
 		memset(iw, 0, w * h * 3 * sizeof(float));
 		const Vector3 *r = points.ptr();
-		float *wf = (float *)iw;
+		float *wf = reinterpret_cast<float *>(iw);
 		for (int i = 0; i < point_count; i++) {
 			wf[i * 3 + 0] = r[i].x;
 			wf[i * 3 + 1] = r[i].y;
@@ -359,18 +368,15 @@ void GPUParticles3DEditor::_generate_emission_points() {
 	}
 
 	Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBF, point_img));
+	Ref<ImageTexture> tex = ImageTexture::create_from_image(image);
 
-	Ref<ImageTexture> tex;
-	tex.instantiate();
-	tex->create_from_image(image);
-
-	Ref<ParticlesMaterial> material = node->get_process_material();
-	ERR_FAIL_COND(material.is_null());
+	Ref<ParticleProcessMaterial> mat = node->get_process_material();
+	ERR_FAIL_COND(mat.is_null());
 
 	if (normals.size() > 0) {
-		material->set_emission_shape(ParticlesMaterial::EMISSION_SHAPE_DIRECTED_POINTS);
-		material->set_emission_point_count(point_count);
-		material->set_emission_point_texture(tex);
+		mat->set_emission_shape(ParticleProcessMaterial::EMISSION_SHAPE_DIRECTED_POINTS);
+		mat->set_emission_point_count(point_count);
+		mat->set_emission_point_texture(tex);
 
 		Vector<uint8_t> point_img2;
 		point_img2.resize(w * h * 3 * sizeof(float));
@@ -379,7 +385,7 @@ void GPUParticles3DEditor::_generate_emission_points() {
 			uint8_t *iw = point_img2.ptrw();
 			memset(iw, 0, w * h * 3 * sizeof(float));
 			const Vector3 *r = normals.ptr();
-			float *wf = (float *)iw;
+			float *wf = reinterpret_cast<float *>(iw);
 			for (int i = 0; i < point_count; i++) {
 				wf[i * 3 + 0] = r[i].x;
 				wf[i * 3 + 1] = r[i].y;
@@ -388,16 +394,11 @@ void GPUParticles3DEditor::_generate_emission_points() {
 		}
 
 		Ref<Image> image2 = memnew(Image(w, h, false, Image::FORMAT_RGBF, point_img2));
-
-		Ref<ImageTexture> tex2;
-		tex2.instantiate();
-		tex2->create_from_image(image2);
-
-		material->set_emission_normal_texture(tex2);
+		mat->set_emission_normal_texture(ImageTexture::create_from_image(image2));
 	} else {
-		material->set_emission_shape(ParticlesMaterial::EMISSION_SHAPE_POINTS);
-		material->set_emission_point_count(point_count);
-		material->set_emission_point_texture(tex);
+		mat->set_emission_shape(ParticleProcessMaterial::EMISSION_SHAPE_POINTS);
+		mat->set_emission_point_count(point_count);
+		mat->set_emission_point_texture(tex);
 	}
 }
 
@@ -414,12 +415,12 @@ GPUParticles3DEditor::GPUParticles3DEditor() {
 	particles_editor_hb->hide();
 
 	options->set_text(TTR("GPUParticles3D"));
-	options->get_popup()->add_item(TTR("Restart"), MENU_OPTION_RESTART);
+	options->get_popup()->add_shortcut(ED_GET_SHORTCUT("particles/restart_emission"), MENU_OPTION_RESTART);
 	options->get_popup()->add_item(TTR("Generate AABB"), MENU_OPTION_GENERATE_AABB);
 	options->get_popup()->add_item(TTR("Create Emission Points From Node"), MENU_OPTION_CREATE_EMISSION_VOLUME_FROM_NODE);
 	options->get_popup()->add_item(TTR("Convert to CPUParticles3D"), MENU_OPTION_CONVERT_TO_CPU_PARTICLES);
 
-	options->get_popup()->connect("id_pressed", callable_mp(this, &GPUParticles3DEditor::_menu_option));
+	options->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &GPUParticles3DEditor::_menu_option));
 
 	generate_aabb = memnew(ConfirmationDialog);
 	generate_aabb->set_title(TTR("Generate Visibility AABB"));
@@ -433,7 +434,7 @@ GPUParticles3DEditor::GPUParticles3DEditor() {
 
 	add_child(generate_aabb);
 
-	generate_aabb->connect("confirmed", callable_mp(this, &GPUParticles3DEditor::_generate_aabb));
+	generate_aabb->connect(SceneStringName(confirmed), callable_mp(this, &GPUParticles3DEditor::_generate_aabb));
 }
 
 void GPUParticles3DEditorPlugin::edit(Object *p_object) {
@@ -455,10 +456,9 @@ void GPUParticles3DEditorPlugin::make_visible(bool p_visible) {
 	}
 }
 
-GPUParticles3DEditorPlugin::GPUParticles3DEditorPlugin(EditorNode *p_node) {
-	editor = p_node;
+GPUParticles3DEditorPlugin::GPUParticles3DEditorPlugin() {
 	particles_editor = memnew(GPUParticles3DEditor);
-	editor->get_main_control()->add_child(particles_editor);
+	EditorNode::get_singleton()->get_main_screen_control()->add_child(particles_editor);
 
 	particles_editor->hide();
 }

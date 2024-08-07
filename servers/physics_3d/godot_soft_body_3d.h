@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_soft_body_3d.h                                                 */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_soft_body_3d.h                                                  */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef GODOT_SOFT_BODY_3D_H
 #define GODOT_SOFT_BODY_3D_H
@@ -37,8 +37,8 @@
 #include "core/math/aabb.h"
 #include "core/math/dynamic_bvh.h"
 #include "core/math/vector3.h"
+#include "core/templates/hash_set.h"
 #include "core/templates/local_vector.h"
-#include "core/templates/set.h"
 #include "core/templates/vset.h"
 
 class GodotConstraint3D;
@@ -101,11 +101,9 @@ class GodotSoftBody3D : public GodotCollisionObject3D {
 	real_t drag_coefficient = 0.0; // [0,1]
 	LocalVector<int> pinned_vertices;
 
-	Vector3 gravity;
-
 	SelfList<GodotSoftBody3D> active_list;
 
-	Set<GodotConstraint3D *> constraints;
+	HashSet<GodotConstraint3D *> constraints;
 
 	Vector<AreaCMP> areas;
 
@@ -113,7 +111,6 @@ class GodotSoftBody3D : public GodotCollisionObject3D {
 
 	uint64_t island_step = 0;
 
-	_FORCE_INLINE_ void _compute_area_gravity(const GodotArea3D *p_area);
 	_FORCE_INLINE_ Vector3 _compute_area_windforce(const GodotArea3D *p_area, const Face *p_face);
 
 public:
@@ -126,7 +123,7 @@ public:
 
 	_FORCE_INLINE_ void add_constraint(GodotConstraint3D *p_constraint) { constraints.insert(p_constraint); }
 	_FORCE_INLINE_ void remove_constraint(GodotConstraint3D *p_constraint) { constraints.erase(p_constraint); }
-	_FORCE_INLINE_ const Set<GodotConstraint3D *> &get_constraints() const { return constraints; }
+	_FORCE_INLINE_ const HashSet<GodotConstraint3D *> &get_constraints() const { return constraints; }
 	_FORCE_INLINE_ void clear_constraints() { constraints.clear(); }
 
 	_FORCE_INLINE_ void add_exception(const RID &p_exception) { exceptions.insert(p_exception); }
@@ -151,16 +148,16 @@ public:
 		if (index > -1) {
 			areas.write[index].refCount -= 1;
 			if (areas[index].refCount < 1) {
-				areas.remove(index);
+				areas.remove_at(index);
 			}
 		}
 	}
 
-	virtual void set_space(GodotSpace3D *p_space);
+	virtual void set_space(GodotSpace3D *p_space) override;
 
 	void set_mesh(RID p_mesh);
 
-	void update_rendering_server(RenderingServerHandler *p_rendering_server_handler);
+	void update_rendering_server(PhysicsServer3DRenderingServerHandler *p_rendering_server_handler);
 
 	Vector3 get_vertex_position(int p_index) const;
 	void set_vertex_position(int p_index, const Vector3 &p_position);
@@ -207,8 +204,8 @@ public:
 	void predict_motion(real_t p_delta);
 	void solve_constraints(real_t p_delta);
 
-	_FORCE_INLINE_ uint32_t get_node_index(void *p_node) const { return ((Node *)p_node)->index; }
-	_FORCE_INLINE_ uint32_t get_face_index(void *p_face) const { return ((Face *)p_face)->index; }
+	_FORCE_INLINE_ uint32_t get_node_index(void *p_node) const { return static_cast<Node *>(p_node)->index; }
+	_FORCE_INLINE_ uint32_t get_face_index(void *p_face) const { return static_cast<Face *>(p_face)->index; }
 
 	// Return true to stop the query.
 	// p_index is the node index for AABB query, face index for Ray query.
@@ -218,7 +215,7 @@ public:
 	void query_ray(const Vector3 &p_from, const Vector3 &p_to, QueryResultCallback p_result_callback, void *p_userdata);
 
 protected:
-	virtual void _shapes_changed();
+	virtual void _shapes_changed() override;
 
 private:
 	void update_normals_and_centroids();
@@ -262,7 +259,7 @@ public:
 	virtual Vector3 get_support(const Vector3 &p_normal) const override { return Vector3(); }
 	virtual void get_supports(const Vector3 &p_normal, int p_max, Vector3 *r_supports, int &r_amount, FeatureType &r_type) const override { r_amount = 0; }
 
-	virtual bool intersect_segment(const Vector3 &p_begin, const Vector3 &p_end, Vector3 &r_result, Vector3 &r_normal, bool p_hit_back_faces) const override;
+	virtual bool intersect_segment(const Vector3 &p_begin, const Vector3 &p_end, Vector3 &r_result, Vector3 &r_normal, int &r_face_index, bool p_hit_back_faces) const override;
 	virtual bool intersect_point(const Vector3 &p_point) const override;
 	virtual Vector3 get_closest_point_to(const Vector3 &p_point) const override;
 	virtual Vector3 get_moment_of_inertia(real_t p_mass) const override { return Vector3(); }

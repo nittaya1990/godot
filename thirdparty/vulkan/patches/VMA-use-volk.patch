@@ -1,17 +1,17 @@
 diff --git a/thirdparty/vulkan/vk_mem_alloc.h b/thirdparty/vulkan/vk_mem_alloc.h
-index 65d6243419..9890f20f7c 100644
+index 711f486571..e5eaa80e74 100644
 --- a/thirdparty/vulkan/vk_mem_alloc.h
 +++ b/thirdparty/vulkan/vk_mem_alloc.h
-@@ -2063,7 +2063,11 @@ available through VmaAllocatorCreateInfo::pRecordSettings.
- #endif // #if defined(__ANDROID__) && VMA_STATIC_VULKAN_FUNCTIONS && VK_NO_PROTOTYPES
- 
- #ifndef VULKAN_H_
--    #include <vulkan/vulkan.h>
-+    #ifdef USE_VOLK
-+        #include <volk.h>
-+    #else
-+        #include <vulkan/vulkan.h>
-+    #endif
+@@ -127,7 +127,11 @@ See documentation chapter: \ref statistics.
+ extern "C" {
  #endif
  
- // Define this macro to declare maximum supported Vulkan version in format AAABBBCCC,
+-#include <vulkan/vulkan.h>
++#ifdef USE_VOLK
++    #include <volk.h>
++#else
++    #include <vulkan/vulkan.h>
++#endif
+ 
+ #if !defined(VMA_VULKAN_VERSION)
+     #if defined(VK_VERSION_1_3)

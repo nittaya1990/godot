@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_area_2d.h                                                      */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_area_2d.h                                                       */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef GODOT_AREA_2D_H
 #define GODOT_AREA_2D_H
@@ -48,8 +48,7 @@ class GodotArea2D : public GodotCollisionObject2D {
 	real_t gravity = 9.80665;
 	Vector2 gravity_vector = Vector2(0, -1);
 	bool gravity_is_point = false;
-	real_t gravity_distance_scale = 0.0;
-	real_t point_attenuation = 1.0;
+	real_t gravity_point_unit_distance = 0.0;
 	real_t linear_damp = 0.1;
 	real_t angular_damp = 1.0;
 	int priority = 0;
@@ -68,16 +67,15 @@ class GodotArea2D : public GodotCollisionObject2D {
 		uint32_t body_shape = 0;
 		uint32_t area_shape = 0;
 
-		_FORCE_INLINE_ bool operator<(const BodyKey &p_key) const {
-			if (rid == p_key.rid) {
-				if (body_shape == p_key.body_shape) {
-					return area_shape < p_key.area_shape;
-				} else {
-					return body_shape < p_key.body_shape;
-				}
-			} else {
-				return rid < p_key.rid;
-			}
+		static uint32_t hash(const BodyKey &p_key) {
+			uint32_t h = hash_one_uint64(p_key.rid.get_id());
+			h = hash_murmur3_one_64(p_key.instance_id, h);
+			h = hash_murmur3_one_32(p_key.area_shape, h);
+			return hash_fmix32(hash_murmur3_one_32(p_key.body_shape, h));
+		}
+
+		_FORCE_INLINE_ bool operator==(const BodyKey &p_key) const {
+			return rid == p_key.rid && instance_id == p_key.instance_id && body_shape == p_key.body_shape && area_shape == p_key.area_shape;
 		}
 
 		_FORCE_INLINE_ BodyKey() {}
@@ -91,22 +89,22 @@ class GodotArea2D : public GodotCollisionObject2D {
 		_FORCE_INLINE_ void dec() { state--; }
 	};
 
-	Map<BodyKey, BodyState> monitored_bodies;
-	Map<BodyKey, BodyState> monitored_areas;
+	HashMap<BodyKey, BodyState, BodyKey> monitored_bodies;
+	HashMap<BodyKey, BodyState, BodyKey> monitored_areas;
 
-	Set<GodotConstraint2D *> constraints;
+	HashSet<GodotConstraint2D *> constraints;
 
-	virtual void _shapes_changed();
+	virtual void _shapes_changed() override;
 	void _queue_monitor_update();
 
 	void _set_space_override_mode(PhysicsServer2D::AreaSpaceOverrideMode &r_mode, PhysicsServer2D::AreaSpaceOverrideMode p_new_mode);
 
 public:
 	void set_monitor_callback(const Callable &p_callback);
-	_FORCE_INLINE_ bool has_monitor_callback() const { return !monitor_callback.is_null(); }
+	_FORCE_INLINE_ bool has_monitor_callback() const { return monitor_callback.is_valid(); }
 
 	void set_area_monitor_callback(const Callable &p_callback);
-	_FORCE_INLINE_ bool has_area_monitor_callback() const { return !area_monitor_callback.is_null(); }
+	_FORCE_INLINE_ bool has_area_monitor_callback() const { return area_monitor_callback.is_valid(); }
 
 	_FORCE_INLINE_ void add_body_to_query(GodotBody2D *p_body, uint32_t p_body_shape, uint32_t p_area_shape);
 	_FORCE_INLINE_ void remove_body_from_query(GodotBody2D *p_body, uint32_t p_body_shape, uint32_t p_area_shape);
@@ -126,11 +124,8 @@ public:
 	_FORCE_INLINE_ void set_gravity_as_point(bool p_enable) { gravity_is_point = p_enable; }
 	_FORCE_INLINE_ bool is_gravity_point() const { return gravity_is_point; }
 
-	_FORCE_INLINE_ void set_gravity_distance_scale(real_t scale) { gravity_distance_scale = scale; }
-	_FORCE_INLINE_ real_t get_gravity_distance_scale() const { return gravity_distance_scale; }
-
-	_FORCE_INLINE_ void set_point_attenuation(real_t p_point_attenuation) { point_attenuation = p_point_attenuation; }
-	_FORCE_INLINE_ real_t get_point_attenuation() const { return point_attenuation; }
+	_FORCE_INLINE_ void set_gravity_point_unit_distance(real_t scale) { gravity_point_unit_distance = scale; }
+	_FORCE_INLINE_ real_t get_gravity_point_unit_distance() const { return gravity_point_unit_distance; }
 
 	_FORCE_INLINE_ void set_linear_damp(real_t p_linear_damp) { linear_damp = p_linear_damp; }
 	_FORCE_INLINE_ real_t get_linear_damp() const { return linear_damp; }
@@ -143,7 +138,7 @@ public:
 
 	_FORCE_INLINE_ void add_constraint(GodotConstraint2D *p_constraint) { constraints.insert(p_constraint); }
 	_FORCE_INLINE_ void remove_constraint(GodotConstraint2D *p_constraint) { constraints.erase(p_constraint); }
-	_FORCE_INLINE_ const Set<GodotConstraint2D *> &get_constraints() const { return constraints; }
+	_FORCE_INLINE_ const HashSet<GodotConstraint2D *> &get_constraints() const { return constraints; }
 	_FORCE_INLINE_ void clear_constraints() { constraints.clear(); }
 
 	void set_monitorable(bool p_monitorable);
@@ -151,7 +146,7 @@ public:
 
 	void set_transform(const Transform2D &p_transform);
 
-	void set_space(GodotSpace2D *p_space);
+	void set_space(GodotSpace2D *p_space) override;
 
 	void call_queries();
 
@@ -172,7 +167,7 @@ void GodotArea2D::add_body_to_query(GodotBody2D *p_body, uint32_t p_body_shape, 
 void GodotArea2D::remove_body_from_query(GodotBody2D *p_body, uint32_t p_body_shape, uint32_t p_area_shape) {
 	BodyKey bk(p_body, p_body_shape, p_area_shape);
 	monitored_bodies[bk].dec();
-	if (!monitor_query_list.in_list()) {
+	if (get_space() && !monitor_query_list.in_list()) {
 		_queue_monitor_update();
 	}
 }
@@ -188,7 +183,7 @@ void GodotArea2D::add_area_to_query(GodotArea2D *p_area, uint32_t p_area_shape, 
 void GodotArea2D::remove_area_from_query(GodotArea2D *p_area, uint32_t p_area_shape, uint32_t p_self_shape) {
 	BodyKey bk(p_area, p_area_shape, p_self_shape);
 	monitored_areas[bk].dec();
-	if (!monitor_query_list.in_list()) {
+	if (get_space() && !monitor_query_list.in_list()) {
 		_queue_monitor_update();
 	}
 }

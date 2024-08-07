@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  input_enums.h                                                        */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  input_enums.h                                                         */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef INPUT_ENUMS_H
 #define INPUT_ENUMS_H
@@ -83,7 +83,7 @@ enum class JoyButton {
 	PADDLE4 = 19,
 	TOUCHPAD = 20,
 	SDL_MAX = 21,
-	MAX = 36, // Android supports up to 36 buttons.
+	MAX = 128, // Android supports up to 36 buttons. DirectInput supports up to 128 buttons.
 };
 
 enum class MIDIMessage {
@@ -95,6 +95,17 @@ enum class MIDIMessage {
 	PROGRAM_CHANGE = 0xC,
 	CHANNEL_PRESSURE = 0xD,
 	PITCH_BEND = 0xE,
+	SYSTEM_EXCLUSIVE = 0xF0,
+	QUARTER_FRAME = 0xF1,
+	SONG_POSITION_POINTER = 0xF2,
+	SONG_SELECT = 0xF3,
+	TUNE_REQUEST = 0xF6,
+	TIMING_CLOCK = 0xF8,
+	START = 0xFA,
+	CONTINUE = 0xFB,
+	STOP = 0xFC,
+	ACTIVE_SENSING = 0xFE,
+	SYSTEM_RESET = 0xFF,
 };
 
 enum class MouseButton {
@@ -108,59 +119,19 @@ enum class MouseButton {
 	WHEEL_RIGHT = 7,
 	MB_XBUTTON1 = 8, // "XBUTTON1" is a reserved word on Windows.
 	MB_XBUTTON2 = 9, // "XBUTTON2" is a reserved word on Windows.
-	MASK_LEFT = (1 << (LEFT - 1)),
-	MASK_RIGHT = (1 << (RIGHT - 1)),
-	MASK_MIDDLE = (1 << (MIDDLE - 1)),
-	MASK_XBUTTON1 = (1 << (MB_XBUTTON1 - 1)),
-	MASK_XBUTTON2 = (1 << (MB_XBUTTON2 - 1)),
 };
 
-inline MouseButton mouse_button_to_mask(MouseButton button) {
-	return MouseButton(1 << ((int)button - 1));
-}
+enum class MouseButtonMask {
+	NONE = 0,
+	LEFT = (1 << (int(MouseButton::LEFT) - 1)),
+	RIGHT = (1 << (int(MouseButton::RIGHT) - 1)),
+	MIDDLE = (1 << (int(MouseButton::MIDDLE) - 1)),
+	MB_XBUTTON1 = (1 << (int(MouseButton::MB_XBUTTON1) - 1)),
+	MB_XBUTTON2 = (1 << (int(MouseButton::MB_XBUTTON2) - 1)),
+};
 
-inline MouseButton operator&(MouseButton a, MouseButton b) {
-	return (MouseButton)((int)a & (int)b);
-}
-
-inline MouseButton operator|(MouseButton a, MouseButton b) {
-	return (MouseButton)((int)a | (int)b);
-}
-
-inline MouseButton operator^(MouseButton a, MouseButton b) {
-	return (MouseButton)((int)a ^ (int)b);
-}
-
-inline MouseButton &operator|=(MouseButton &a, MouseButton b) {
-	return (MouseButton &)((int &)a |= (int)b);
-}
-
-inline MouseButton &operator&=(MouseButton &a, MouseButton b) {
-	return (MouseButton &)((int &)a &= (int)b);
-}
-
-inline MouseButton operator~(MouseButton a) {
-	return (MouseButton)(~(int)a);
-}
-
-inline HatMask operator|(HatMask a, HatMask b) {
-	return (HatMask)((int)a | (int)b);
-}
-
-inline HatMask operator&(HatMask a, HatMask b) {
-	return (HatMask)((int)a & (int)b);
-}
-
-inline HatMask &operator&=(HatMask &a, HatMask b) {
-	return (HatMask &)((int &)a &= (int)b);
-}
-
-inline HatMask &operator|=(HatMask &a, HatMask b) {
-	return (HatMask &)((int &)a |= (int)b);
-}
-
-inline HatMask operator~(HatMask a) {
-	return (HatMask)(~(int)a);
+inline MouseButtonMask mouse_button_to_mask(MouseButton button) {
+	return MouseButtonMask(1 << ((int)button - 1));
 }
 
 #endif // INPUT_ENUMS_H

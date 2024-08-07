@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_body_direct_state_3d.cpp                                       */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_body_direct_state_3d.cpp                                        */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "godot_body_direct_state_3d.h"
 
@@ -99,21 +99,6 @@ Vector3 GodotPhysicsDirectBodyState3D::get_velocity_at_local_position(const Vect
 	return body->get_velocity_in_local_point(p_position);
 }
 
-void GodotPhysicsDirectBodyState3D::add_central_force(const Vector3 &p_force) {
-	body->wakeup();
-	body->add_central_force(p_force);
-}
-
-void GodotPhysicsDirectBodyState3D::add_force(const Vector3 &p_force, const Vector3 &p_position) {
-	body->wakeup();
-	body->add_force(p_force, p_position);
-}
-
-void GodotPhysicsDirectBodyState3D::add_torque(const Vector3 &p_torque) {
-	body->wakeup();
-	body->add_torque(p_torque);
-}
-
 void GodotPhysicsDirectBodyState3D::apply_central_impulse(const Vector3 &p_impulse) {
 	body->wakeup();
 	body->apply_central_impulse(p_impulse);
@@ -127,6 +112,58 @@ void GodotPhysicsDirectBodyState3D::apply_impulse(const Vector3 &p_impulse, cons
 void GodotPhysicsDirectBodyState3D::apply_torque_impulse(const Vector3 &p_impulse) {
 	body->wakeup();
 	body->apply_torque_impulse(p_impulse);
+}
+
+void GodotPhysicsDirectBodyState3D::apply_central_force(const Vector3 &p_force) {
+	body->wakeup();
+	body->apply_central_force(p_force);
+}
+
+void GodotPhysicsDirectBodyState3D::apply_force(const Vector3 &p_force, const Vector3 &p_position) {
+	body->wakeup();
+	body->apply_force(p_force, p_position);
+}
+
+void GodotPhysicsDirectBodyState3D::apply_torque(const Vector3 &p_torque) {
+	body->wakeup();
+	body->apply_torque(p_torque);
+}
+
+void GodotPhysicsDirectBodyState3D::add_constant_central_force(const Vector3 &p_force) {
+	body->wakeup();
+	body->add_constant_central_force(p_force);
+}
+
+void GodotPhysicsDirectBodyState3D::add_constant_force(const Vector3 &p_force, const Vector3 &p_position) {
+	body->wakeup();
+	body->add_constant_force(p_force, p_position);
+}
+
+void GodotPhysicsDirectBodyState3D::add_constant_torque(const Vector3 &p_torque) {
+	body->wakeup();
+	body->add_constant_torque(p_torque);
+}
+
+void GodotPhysicsDirectBodyState3D::set_constant_force(const Vector3 &p_force) {
+	if (!p_force.is_zero_approx()) {
+		body->wakeup();
+	}
+	body->set_constant_force(p_force);
+}
+
+Vector3 GodotPhysicsDirectBodyState3D::get_constant_force() const {
+	return body->get_constant_force();
+}
+
+void GodotPhysicsDirectBodyState3D::set_constant_torque(const Vector3 &p_torque) {
+	if (!p_torque.is_zero_approx()) {
+		body->wakeup();
+	}
+	body->set_constant_torque(p_torque);
+}
+
+Vector3 GodotPhysicsDirectBodyState3D::get_constant_torque() const {
+	return body->get_constant_torque();
 }
 
 void GodotPhysicsDirectBodyState3D::set_sleep_state(bool p_sleep) {
@@ -151,8 +188,14 @@ Vector3 GodotPhysicsDirectBodyState3D::get_contact_local_normal(int p_contact_id
 	return body->contacts[p_contact_idx].local_normal;
 }
 
-real_t GodotPhysicsDirectBodyState3D::get_contact_impulse(int p_contact_idx) const {
-	return 0.0f; // Only implemented for bullet
+Vector3 GodotPhysicsDirectBodyState3D::get_contact_impulse(int p_contact_idx) const {
+	ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, Vector3());
+	return body->contacts[p_contact_idx].impulse;
+}
+
+Vector3 GodotPhysicsDirectBodyState3D::get_contact_local_velocity_at_position(int p_contact_idx) const {
+	ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, Vector3());
+	return body->contacts[p_contact_idx].local_velocity_at_pos;
 }
 
 int GodotPhysicsDirectBodyState3D::get_contact_local_shape(int p_contact_idx) const {

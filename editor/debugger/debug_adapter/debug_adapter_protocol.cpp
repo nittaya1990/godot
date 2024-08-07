@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  debug_adapter_protocol.cpp                                           */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  debug_adapter_protocol.cpp                                            */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "debug_adapter_protocol.h"
 
@@ -37,6 +37,8 @@
 #include "editor/doc_tools.h"
 #include "editor/editor_log.h"
 #include "editor/editor_node.h"
+#include "editor/editor_settings.h"
+#include "editor/gui/editor_run_bar.h"
 
 DebugAdapterProtocol *DebugAdapterProtocol::singleton = nullptr;
 
@@ -50,7 +52,7 @@ Error DAPeer::handle_data() {
 		while (true) {
 			if (req_pos >= DAP_MAX_BUFFER_SIZE) {
 				req_pos = 0;
-				ERR_FAIL_COND_V_MSG(true, ERR_OUT_OF_MEMORY, "Response header too big");
+				ERR_FAIL_V_MSG(ERR_OUT_OF_MEMORY, "Response header too big");
 			}
 			Error err = connection->get_partial_data(&req_buf[req_pos], 1, read);
 			if (err != OK) {
@@ -192,10 +194,12 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::VECTOR2I: {
 			int id = variable_id++;
 			Vector2 vec = p_var;
+			const String type_scalar = Variant::get_type_name(p_var.get_type() == Variant::VECTOR2 ? Variant::FLOAT : Variant::INT);
 			DAP::Variable x, y;
 			x.name = "x";
 			y.name = "y";
-			x.type = y.type = Variant::get_type_name(p_var.get_type() == Variant::VECTOR2 ? Variant::FLOAT : Variant::INT);
+			x.type = type_scalar;
+			y.type = type_scalar;
 			x.value = rtos(vec.x);
 			y.value = rtos(vec.y);
 
@@ -209,12 +213,16 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::RECT2I: {
 			int id = variable_id++;
 			Rect2 rect = p_var;
+			const String type_scalar = Variant::get_type_name(p_var.get_type() == Variant::RECT2 ? Variant::FLOAT : Variant::INT);
 			DAP::Variable x, y, w, h;
 			x.name = "x";
 			y.name = "y";
 			w.name = "w";
 			h.name = "h";
-			x.type = y.type = w.type = h.type = Variant::get_type_name(p_var.get_type() == Variant::RECT2 ? Variant::FLOAT : Variant::INT);
+			x.type = type_scalar;
+			y.type = type_scalar;
+			w.type = type_scalar;
+			h.type = type_scalar;
 			x.value = rtos(rect.position.x);
 			y.value = rtos(rect.position.y);
 			w.value = rtos(rect.size.x);
@@ -232,11 +240,14 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::VECTOR3I: {
 			int id = variable_id++;
 			Vector3 vec = p_var;
+			const String type_scalar = Variant::get_type_name(p_var.get_type() == Variant::VECTOR3 ? Variant::FLOAT : Variant::INT);
 			DAP::Variable x, y, z;
 			x.name = "x";
 			y.name = "y";
 			z.name = "z";
-			x.type = y.type = z.type = Variant::get_type_name(p_var.get_type() == Variant::VECTOR3 ? Variant::FLOAT : Variant::INT);
+			x.type = type_scalar;
+			y.type = type_scalar;
+			z.type = type_scalar;
 			x.value = rtos(vec.x);
 			y.value = rtos(vec.y);
 			z.value = rtos(vec.z);
@@ -251,17 +262,20 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::TRANSFORM2D: {
 			int id = variable_id++;
 			Transform2D transform = p_var;
+			const String type_vec2 = Variant::get_type_name(Variant::VECTOR2);
 			DAP::Variable x, y, origin;
 			x.name = "x";
 			y.name = "y";
 			origin.name = "origin";
-			x.type = y.type = origin.type = Variant::get_type_name(Variant::VECTOR2);
-			x.value = transform.elements[0];
-			y.value = transform.elements[1];
-			origin.value = transform.elements[2];
-			x.variablesReference = parse_variant(transform.elements[0]);
-			y.variablesReference = parse_variant(transform.elements[1]);
-			origin.variablesReference = parse_variant(transform.elements[2]);
+			x.type = type_vec2;
+			y.type = type_vec2;
+			origin.type = type_vec2;
+			x.value = transform.columns[0];
+			y.value = transform.columns[1];
+			origin.value = transform.columns[2];
+			x.variablesReference = parse_variant(transform.columns[0]);
+			y.variablesReference = parse_variant(transform.columns[1]);
+			origin.variablesReference = parse_variant(transform.columns[2]);
 
 			Array arr;
 			arr.push_back(x.to_json());
@@ -291,12 +305,16 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::QUATERNION: {
 			int id = variable_id++;
 			Quaternion quat = p_var;
+			const String type_float = Variant::get_type_name(Variant::FLOAT);
 			DAP::Variable x, y, z, w;
 			x.name = "x";
 			y.name = "y";
 			z.name = "z";
 			w.name = "w";
-			x.type = y.type = z.type = w.type = Variant::get_type_name(Variant::FLOAT);
+			x.type = type_float;
+			y.type = type_float;
+			z.type = type_float;
+			w.type = type_float;
 			x.value = rtos(quat.x);
 			y.value = rtos(quat.y);
 			z.value = rtos(quat.z);
@@ -313,10 +331,12 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::AABB: {
 			int id = variable_id++;
 			AABB aabb = p_var;
+			const String type_vec3 = Variant::get_type_name(Variant::VECTOR3);
 			DAP::Variable position, size;
 			position.name = "position";
 			size.name = "size";
-			position.type = size.type = Variant::get_type_name(Variant::VECTOR3);
+			position.type = type_vec3;
+			size.type = type_vec3;
 			position.value = aabb.position;
 			size.value = aabb.size;
 			position.variablesReference = parse_variant(aabb.position);
@@ -331,17 +351,20 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::BASIS: {
 			int id = variable_id++;
 			Basis basis = p_var;
+			const String type_vec3 = Variant::get_type_name(Variant::VECTOR3);
 			DAP::Variable x, y, z;
 			x.name = "x";
 			y.name = "y";
 			z.name = "z";
-			x.type = y.type = z.type = Variant::get_type_name(Variant::VECTOR2);
-			x.value = basis.elements[0];
-			y.value = basis.elements[1];
-			z.value = basis.elements[2];
-			x.variablesReference = parse_variant(basis.elements[0]);
-			y.variablesReference = parse_variant(basis.elements[1]);
-			z.variablesReference = parse_variant(basis.elements[2]);
+			x.type = type_vec3;
+			y.type = type_vec3;
+			z.type = type_vec3;
+			x.value = basis.rows[0];
+			y.value = basis.rows[1];
+			z.value = basis.rows[2];
+			x.variablesReference = parse_variant(basis.rows[0]);
+			y.variablesReference = parse_variant(basis.rows[1]);
+			z.variablesReference = parse_variant(basis.rows[2]);
 
 			Array arr;
 			arr.push_back(x.to_json());
@@ -372,12 +395,16 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		case Variant::COLOR: {
 			int id = variable_id++;
 			Color color = p_var;
+			const String type_float = Variant::get_type_name(Variant::FLOAT);
 			DAP::Variable r, g, b, a;
 			r.name = "r";
 			g.name = "g";
 			b.name = "b";
 			a.name = "a";
-			r.type = g.type = b.type = a.type = Variant::get_type_name(Variant::FLOAT);
+			r.type = type_float;
+			g.type = type_float;
+			b.type = type_float;
+			a.type = type_float;
 			r.value = rtos(color.r);
 			g.value = rtos(color.g);
 			b.value = rtos(color.b);
@@ -580,7 +607,7 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 		}
 		case Variant::PACKED_VECTOR3_ARRAY: {
 			int id = variable_id++;
-			PackedVector2Array array = p_var;
+			PackedVector3Array array = p_var;
 			DAP::Variable size;
 			size.name = "size";
 			size.type = Variant::get_type_name(Variant::INT);
@@ -622,6 +649,28 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 			variable_list.insert(id, arr);
 			return id;
 		}
+		case Variant::PACKED_VECTOR4_ARRAY: {
+			int id = variable_id++;
+			PackedVector4Array array = p_var;
+			DAP::Variable size;
+			size.name = "size";
+			size.type = Variant::get_type_name(Variant::INT);
+			size.value = itos(array.size());
+
+			Array arr;
+			arr.push_back(size.to_json());
+
+			for (int i = 0; i < array.size(); i++) {
+				DAP::Variable var;
+				var.name = itos(i);
+				var.type = Variant::get_type_name(Variant::VECTOR4);
+				var.value = array[i];
+				var.variablesReference = parse_variant(array[i]);
+				arr.push_back(var.to_json());
+			}
+			variable_list.insert(id, arr);
+			return id;
+		}
 		default:
 			// Simple atomic stuff, or too complex to be manipulated
 			return 0;
@@ -630,7 +679,7 @@ int DebugAdapterProtocol::parse_variant(const Variant &p_var) {
 
 bool DebugAdapterProtocol::process_message(const String &p_text) {
 	JSON json;
-	ERR_FAIL_COND_V_MSG(json.parse(p_text) != OK, true, "Mal-formed message!");
+	ERR_FAIL_COND_V_MSG(json.parse(p_text) != OK, true, "Malformed message!");
 	Dictionary params = json.get_data();
 	bool completed = true;
 
@@ -651,7 +700,10 @@ bool DebugAdapterProtocol::process_message(const String &p_text) {
 		if (!response.is_empty()) {
 			_current_peer->res_queue.push_front(response);
 		} else {
-			completed = false;
+			// Launch request needs to be deferred until we receive a configurationDone request.
+			if (command != "req_launch") {
+				completed = false;
+			}
 		}
 	}
 
@@ -733,8 +785,8 @@ void DebugAdapterProtocol::notify_continued() {
 	reset_stack_info();
 }
 
-void DebugAdapterProtocol::notify_output(const String &p_message) {
-	Dictionary event = parser->ev_output(p_message);
+void DebugAdapterProtocol::notify_output(const String &p_message, RemoteDebugger::MessageType p_type) {
+	Dictionary event = parser->ev_output(p_message, p_type);
 	for (List<Ref<DAPeer>>::Element *E = clients.front(); E; E = E->next()) {
 		E->get()->res_queue.push_back(event);
 	}
@@ -786,7 +838,7 @@ Array DebugAdapterProtocol::update_breakpoints(const String &p_path, const Array
 }
 
 void DebugAdapterProtocol::on_debug_paused() {
-	if (EditorNode::get_singleton()->get_pause_button()->is_pressed()) {
+	if (EditorRunBar::get_singleton()->get_pause_button()->is_pressed()) {
 		notify_stopped_paused();
 	} else {
 		notify_continued();
@@ -798,8 +850,8 @@ void DebugAdapterProtocol::on_debug_stopped() {
 	notify_terminated();
 }
 
-void DebugAdapterProtocol::on_debug_output(const String &p_message) {
-	notify_output(p_message);
+void DebugAdapterProtocol::on_debug_output(const String &p_message, int p_type) {
+	notify_output(p_message, RemoteDebugger::MessageType(p_type));
 }
 
 void DebugAdapterProtocol::on_debug_breaked(const bool &p_reallydid, const bool &p_can_debug, const String &p_reason, const bool &p_has_stackdump) {
@@ -893,13 +945,13 @@ void DebugAdapterProtocol::on_debug_stack_frame_vars(const int &p_size) {
 	DAP::StackFrame frame;
 	frame.id = _current_frame;
 	ERR_FAIL_COND(!stackframe_list.has(frame));
-	List<int> scope_ids = stackframe_list.find(frame)->value();
+	List<int> scope_ids = stackframe_list.find(frame)->value;
 	for (List<int>::Element *E = scope_ids.front(); E; E = E->next()) {
-		int variable_id = E->get();
-		if (variable_list.has(variable_id)) {
-			variable_list.find(variable_id)->value().clear();
+		int var_id = E->get();
+		if (variable_list.has(var_id)) {
+			variable_list.find(var_id)->value.clear();
 		} else {
-			variable_list.insert(variable_id, Array());
+			variable_list.insert(var_id, Array());
 		}
 	}
 }
@@ -912,10 +964,10 @@ void DebugAdapterProtocol::on_debug_stack_frame_var(const Array &p_data) {
 	DAP::StackFrame frame;
 	frame.id = _current_frame;
 
-	List<int> scope_ids = stackframe_list.find(frame)->value();
+	List<int> scope_ids = stackframe_list.find(frame)->value;
 	ERR_FAIL_COND(scope_ids.size() != 3);
 	ERR_FAIL_INDEX(stack_var.type, 3);
-	int variable_id = scope_ids[stack_var.type];
+	int var_id = scope_ids.get(stack_var.type);
 
 	DAP::Variable variable;
 
@@ -924,7 +976,7 @@ void DebugAdapterProtocol::on_debug_stack_frame_var(const Array &p_data) {
 	variable.type = Variant::get_type_name(stack_var.value.get_type());
 	variable.variablesReference = parse_variant(stack_var.value);
 
-	variable_list.find(variable_id)->value().push_back(variable.to_json());
+	variable_list.find(var_id)->value.push_back(variable.to_json());
 	_remaining_vars--;
 }
 
@@ -944,6 +996,7 @@ void DebugAdapterProtocol::poll() {
 	List<Ref<DAPeer>> to_delete;
 	for (List<Ref<DAPeer>>::Element *E = clients.front(); E; E = E->next()) {
 		Ref<DAPeer> peer = E->get();
+		peer->connection->poll();
 		StreamPeerTCP::Status status = peer->connection->get_status();
 		if (status == StreamPeerTCP::STATUS_NONE || status == StreamPeerTCP::STATUS_ERROR) {
 			to_delete.push_back(peer);
@@ -990,8 +1043,7 @@ DebugAdapterProtocol::DebugAdapterProtocol() {
 
 	reset_ids();
 
-	EditorNode *node = EditorNode::get_singleton();
-	node->get_pause_button()->connect("pressed", callable_mp(this, &DebugAdapterProtocol::on_debug_paused));
+	EditorRunBar::get_singleton()->get_pause_button()->connect(SceneStringName(pressed), callable_mp(this, &DebugAdapterProtocol::on_debug_paused));
 
 	EditorDebuggerNode *debugger_node = EditorDebuggerNode::get_singleton();
 	debugger_node->connect("breakpoint_toggled", callable_mp(this, &DebugAdapterProtocol::on_debug_breakpoint_toggled));

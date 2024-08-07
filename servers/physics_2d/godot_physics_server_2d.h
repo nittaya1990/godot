@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  godot_physics_server_2d.h                                            */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  godot_physics_server_2d.h                                             */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef GODOT_PHYSICS_SERVER_2D_H
 #define GODOT_PHYSICS_SERVER_2D_H
@@ -45,7 +45,6 @@ class GodotPhysicsServer2D : public PhysicsServer2D {
 	friend class GodotPhysicsDirectSpaceState2D;
 	friend class GodotPhysicsDirectBodyState2D;
 	bool active = true;
-	int iterations = 0;
 	bool doing_sync = false;
 
 	int island_count = 0;
@@ -57,7 +56,7 @@ class GodotPhysicsServer2D : public PhysicsServer2D {
 	bool flushing_queries = false;
 
 	GodotStep2D *stepper = nullptr;
-	Set<const GodotSpace2D *> active_spaces;
+	HashSet<const GodotSpace2D *> active_spaces;
 
 	mutable RID_PtrOwner<GodotShape2D, true> shape_owner;
 	mutable RID_PtrOwner<GodotSpace2D, true> space_owner;
@@ -152,8 +151,12 @@ public:
 	virtual Variant area_get_param(RID p_area, AreaParameter p_param) const override;
 	virtual Transform2D area_get_transform(RID p_area) const override;
 	virtual void area_set_monitorable(RID p_area, bool p_monitorable) override;
-	virtual void area_set_collision_mask(RID p_area, uint32_t p_mask) override;
+
 	virtual void area_set_collision_layer(RID p_area, uint32_t p_layer) override;
+	virtual uint32_t area_get_collision_layer(RID p_area) const override;
+
+	virtual void area_set_collision_mask(RID p_area, uint32_t p_mask) override;
+	virtual uint32_t area_get_collision_mask(RID p_area) const override;
 
 	virtual void area_set_monitor_callback(RID p_area, const Callable &p_callback) override;
 	virtual void area_set_area_monitor_callback(RID p_area, const Callable &p_callback) override;
@@ -200,6 +203,9 @@ public:
 	virtual void body_set_collision_mask(RID p_body, uint32_t p_mask) override;
 	virtual uint32_t body_get_collision_mask(RID p_body) const override;
 
+	virtual void body_set_collision_priority(RID p_body, real_t p_priority) override;
+	virtual real_t body_get_collision_priority(RID p_body) const override;
+
 	virtual void body_set_param(RID p_body, BodyParameter p_param, const Variant &p_value) override;
 	virtual Variant body_get_param(RID p_body, BodyParameter p_param) const override;
 
@@ -208,19 +214,24 @@ public:
 	virtual void body_set_state(RID p_body, BodyState p_state, const Variant &p_variant) override;
 	virtual Variant body_get_state(RID p_body, BodyState p_state) const override;
 
-	virtual void body_set_applied_force(RID p_body, const Vector2 &p_force) override;
-	virtual Vector2 body_get_applied_force(RID p_body) const override;
-
-	virtual void body_set_applied_torque(RID p_body, real_t p_torque) override;
-	virtual real_t body_get_applied_torque(RID p_body) const override;
-
-	virtual void body_add_central_force(RID p_body, const Vector2 &p_force) override;
-	virtual void body_add_force(RID p_body, const Vector2 &p_force, const Vector2 &p_position = Vector2()) override;
-	virtual void body_add_torque(RID p_body, real_t p_torque) override;
-
 	virtual void body_apply_central_impulse(RID p_body, const Vector2 &p_impulse) override;
 	virtual void body_apply_torque_impulse(RID p_body, real_t p_torque) override;
 	virtual void body_apply_impulse(RID p_body, const Vector2 &p_impulse, const Vector2 &p_position = Vector2()) override;
+
+	virtual void body_apply_central_force(RID p_body, const Vector2 &p_force) override;
+	virtual void body_apply_force(RID p_body, const Vector2 &p_force, const Vector2 &p_position = Vector2()) override;
+	virtual void body_apply_torque(RID p_body, real_t p_torque) override;
+
+	virtual void body_add_constant_central_force(RID p_body, const Vector2 &p_force) override;
+	virtual void body_add_constant_force(RID p_body, const Vector2 &p_force, const Vector2 &p_position = Vector2()) override;
+	virtual void body_add_constant_torque(RID p_body, real_t p_torque) override;
+
+	virtual void body_set_constant_force(RID p_body, const Vector2 &p_force) override;
+	virtual Vector2 body_get_constant_force(RID p_body) const override;
+
+	virtual void body_set_constant_torque(RID p_body, real_t p_torque) override;
+	virtual real_t body_get_constant_torque(RID p_body) const override;
+
 	virtual void body_set_axis_velocity(RID p_body, const Vector2 &p_axis_velocity) override;
 
 	virtual void body_add_collision_exception(RID p_body, RID p_body_b) override;
@@ -236,7 +247,7 @@ public:
 	virtual void body_set_max_contacts_reported(RID p_body, int p_contacts) override;
 	virtual int body_get_max_contacts_reported(RID p_body) const override;
 
-	virtual void body_set_state_sync_callback(RID p_body, void *p_instance, BodyStateCallback p_callback) override;
+	virtual void body_set_state_sync_callback(RID p_body, const Callable &p_callable) override;
 	virtual void body_set_force_integration_callback(RID p_body, const Callable &p_callable, const Variant &p_udata = Variant()) override;
 
 	virtual bool body_collide_shape(RID p_body, int p_body_shape, RID p_shape, const Transform2D &p_shape_xform, const Vector2 &p_motion, Vector2 *r_results, int p_result_max, int &r_result_count) override;
@@ -264,6 +275,8 @@ public:
 	virtual void joint_make_groove(RID p_joint, const Vector2 &p_a_groove1, const Vector2 &p_a_groove2, const Vector2 &p_b_anchor, RID p_body_a, RID p_body_b) override;
 	virtual void joint_make_damped_spring(RID p_joint, const Vector2 &p_anchor_a, const Vector2 &p_anchor_b, RID p_body_a, RID p_body_b = RID()) override;
 
+	virtual void pin_joint_set_flag(RID p_joint, PinJointFlag p_flag, bool p_enabled) override;
+	virtual bool pin_joint_get_flag(RID p_joint, PinJointFlag p_flag) const override;
 	virtual void pin_joint_set_param(RID p_joint, PinJointParam p_param, real_t p_value) override;
 	virtual real_t pin_joint_get_param(RID p_joint, PinJointParam p_param) const override;
 	virtual void damped_spring_joint_set_param(RID p_joint, DampedSpringParam p_param, real_t p_value) override;
@@ -282,8 +295,6 @@ public:
 	virtual void flush_queries() override;
 	virtual void end_sync() override;
 	virtual void finish() override;
-
-	virtual void set_collision_iterations(int p_iterations) override;
 
 	virtual bool is_flushing_queries() const override { return flushing_queries; }
 

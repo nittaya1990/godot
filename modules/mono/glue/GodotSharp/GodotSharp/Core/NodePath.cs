@@ -1,5 +1,8 @@
 using System;
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
+using Godot.NativeInterop;
+
+#nullable enable
 
 namespace Godot
 {
@@ -39,22 +42,11 @@ namespace Godot
     /// new NodePath("/root/MyAutoload"); // If you have an autoloaded node or scene.
     /// </code>
     /// </example>
-    public sealed partial class NodePath : IDisposable
+    public sealed class NodePath : IDisposable, IEquatable<NodePath?>
     {
-        private bool _disposed = false;
+        internal godot_node_path.movable NativeValue;
 
-        private IntPtr ptr;
-
-        internal static IntPtr GetPtr(NodePath instance)
-        {
-            if (instance == null)
-                throw new NullReferenceException($"The instance of type {nameof(NodePath)} is null.");
-
-            if (instance._disposed)
-                throw new ObjectDisposedException(instance.GetType().FullName);
-
-            return instance.ptr;
-        }
+        private WeakReference<IDisposable>? _weakReferenceToSelf;
 
         ~NodePath()
         {
@@ -70,29 +62,33 @@ namespace Godot
             GC.SuppressFinalize(this);
         }
 
-        private void Dispose(bool disposing)
+        public void Dispose(bool disposing)
         {
-            if (_disposed)
-                return;
+            // Always dispose `NativeValue` even if disposing is true
+            NativeValue.DangerousSelfRef.Dispose();
 
-            if (ptr != IntPtr.Zero)
+            if (_weakReferenceToSelf != null)
             {
-                godot_icall_NodePath_Dtor(ptr);
-                ptr = IntPtr.Zero;
+                DisposablesTracker.UnregisterDisposable(_weakReferenceToSelf);
             }
-
-            _disposed = true;
         }
 
-        internal NodePath(IntPtr ptr)
+        private NodePath(godot_node_path nativeValueToOwn)
         {
-            this.ptr = ptr;
+            NativeValue = (godot_node_path.movable)nativeValueToOwn;
+            _weakReferenceToSelf = DisposablesTracker.RegisterDisposable(this);
         }
+
+        // Explicit name to make it very clear
+        internal static NodePath CreateTakingOwnershipOfDisposableValue(godot_node_path nativeValueToOwn)
+            => new NodePath(nativeValueToOwn);
 
         /// <summary>
         /// Constructs an empty <see cref="NodePath"/>.
         /// </summary>
-        public NodePath() : this(string.Empty) { }
+        public NodePath()
+        {
+        }
 
         /// <summary>
         /// Constructs a <see cref="NodePath"/> from a string <paramref name="path"/>,
@@ -122,10 +118,14 @@ namespace Godot
         /// "/root/Level/Path2D"
         /// </code>
         /// </example>
-        /// <param name="path"></param>
+        /// <param name="path">A string that represents a path in a scene tree.</param>
         public NodePath(string path)
         {
-            ptr = godot_icall_NodePath_Ctor(path);
+            if (!string.IsNullOrEmpty(path))
+            {
+                NativeValue = (godot_node_path.movable)NativeFuncs.godotsharp_node_path_new_from_string(path);
+                _weakReferenceToSelf = DisposablesTracker.RegisterDisposable(this);
+            }
         }
 
         /// <summary>
@@ -138,7 +138,8 @@ namespace Godot
         /// Converts this <see cref="NodePath"/> to a string.
         /// </summary>
         /// <param name="from">The <see cref="NodePath"/> to convert.</param>
-        public static implicit operator string(NodePath from) => from.ToString();
+        [return: NotNullIfNotNull("from")]
+        public static implicit operator string?(NodePath? from) => from?.ToString();
 
         /// <summary>
         /// Converts this <see cref="NodePath"/> to a string.
@@ -146,7 +147,13 @@ namespace Godot
         /// <returns>A string representation of this <see cref="NodePath"/>.</returns>
         public override string ToString()
         {
-            return godot_icall_NodePath_operator_String(GetPtr(this));
+            if (IsEmpty)
+                return string.Empty;
+
+            var src = (godot_node_path)NativeValue;
+            NativeFuncs.godotsharp_node_path_as_string(out godot_string dest, src);
+            using (dest)
+                return Marshaling.ConvertStringToManaged(dest);
         }
 
         /// <summary>
@@ -166,7 +173,28 @@ namespace Godot
         /// <returns>The <see cref="NodePath"/> as a pure property path.</returns>
         public NodePath GetAsPropertyPath()
         {
-            return new NodePath(godot_icall_NodePath_get_as_property_path(GetPtr(this)));
+            godot_node_path propertyPath = default;
+            var self = (godot_node_path)NativeValue;
+            NativeFuncs.godotsharp_node_path_get_as_property_path(self, ref propertyPath);
+            return CreateTakingOwnershipOfDisposableValue(propertyPath);
+        }
+
+        /// <summary>
+        /// Returns all names concatenated with a slash character (<c>/</c>).
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// var nodepath = new NodePath("Path2D/PathFollow2D/Sprite2D:texture:load_path");
+        /// GD.Print(nodepath.GetConcatenatedNames()); // Path2D/PathFollow2D/Sprite2D
+        /// </code>
+        /// </example>
+        /// <returns>The names concatenated with <c>/</c>.</returns>
+        public string GetConcatenatedNames()
+        {
+            var self = (godot_node_path)NativeValue;
+            NativeFuncs.godotsharp_node_path_get_concatenated_names(self, out godot_string names);
+            using (names)
+                return Marshaling.ConvertStringToManaged(names);
         }
 
         /// <summary>
@@ -180,9 +208,12 @@ namespace Godot
         /// </code>
         /// </example>
         /// <returns>The subnames concatenated with <c>:</c>.</returns>
-        public string GetConcatenatedSubnames()
+        public string GetConcatenatedSubNames()
         {
-            return godot_icall_NodePath_get_concatenated_subnames(GetPtr(this));
+            var self = (godot_node_path)NativeValue;
+            NativeFuncs.godotsharp_node_path_get_concatenated_subnames(self, out godot_string subNames);
+            using (subNames)
+                return Marshaling.ConvertStringToManaged(subNames);
         }
 
         /// <summary>
@@ -200,28 +231,35 @@ namespace Godot
         /// <returns>The name at the given index <paramref name="idx"/>.</returns>
         public string GetName(int idx)
         {
-            return godot_icall_NodePath_get_name(GetPtr(this), idx);
+            var self = (godot_node_path)NativeValue;
+            NativeFuncs.godotsharp_node_path_get_name(self, idx, out godot_string name);
+            using (name)
+                return Marshaling.ConvertStringToManaged(name);
         }
 
         /// <summary>
         /// Gets the number of node names which make up the path.
-        /// Subnames (see <see cref="GetSubnameCount"/>) are not included.
+        /// Subnames (see <see cref="GetSubNameCount"/>) are not included.
         /// For example, <c>"Path2D/PathFollow2D/Sprite2D"</c> has 3 names.
         /// </summary>
         /// <returns>The number of node names which make up the path.</returns>
         public int GetNameCount()
         {
-            return godot_icall_NodePath_get_name_count(GetPtr(this));
+            var self = (godot_node_path)NativeValue;
+            return NativeFuncs.godotsharp_node_path_get_name_count(self);
         }
 
         /// <summary>
-        /// Gets the resource or property name indicated by <paramref name="idx"/> (0 to <see cref="GetSubnameCount"/>).
+        /// Gets the resource or property name indicated by <paramref name="idx"/> (0 to <see cref="GetSubNameCount"/>).
         /// </summary>
         /// <param name="idx">The subname index.</param>
         /// <returns>The subname at the given index <paramref name="idx"/>.</returns>
-        public string GetSubname(int idx)
+        public string GetSubName(int idx)
         {
-            return godot_icall_NodePath_get_subname(GetPtr(this), idx);
+            var self = (godot_node_path)NativeValue;
+            NativeFuncs.godotsharp_node_path_get_subname(self, idx, out godot_string subName);
+            using (subName)
+                return Marshaling.ConvertStringToManaged(subName);
         }
 
         /// <summary>
@@ -230,9 +268,10 @@ namespace Godot
         /// For example, <c>"Path2D/PathFollow2D/Sprite2D:texture:load_path"</c> has 2 subnames.
         /// </summary>
         /// <returns>The number of subnames in the path.</returns>
-        public int GetSubnameCount()
+        public int GetSubNameCount()
         {
-            return godot_icall_NodePath_get_subname_count(GetPtr(this));
+            var self = (godot_node_path)NativeValue;
+            return NativeFuncs.godotsharp_node_path_get_subname_count(self);
         }
 
         /// <summary>
@@ -244,49 +283,46 @@ namespace Godot
         /// <returns>If the <see cref="NodePath"/> is an absolute path.</returns>
         public bool IsAbsolute()
         {
-            return godot_icall_NodePath_is_absolute(GetPtr(this));
+            var self = (godot_node_path)NativeValue;
+            return NativeFuncs.godotsharp_node_path_is_absolute(self).ToBool();
         }
 
         /// <summary>
         /// Returns <see langword="true"/> if the node path is empty.
         /// </summary>
         /// <returns>If the <see cref="NodePath"/> is empty.</returns>
-        public bool IsEmpty()
+        public bool IsEmpty => NativeValue.DangerousSelfRef.IsEmpty;
+
+        public static bool operator ==(NodePath? left, NodePath? right)
         {
-            return godot_icall_NodePath_is_empty(GetPtr(this));
+            if (left is null)
+                return right is null;
+            return left.Equals(right);
         }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern IntPtr godot_icall_NodePath_Ctor(string path);
+        public static bool operator !=(NodePath? left, NodePath? right)
+        {
+            return !(left == right);
+        }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern void godot_icall_NodePath_Dtor(IntPtr ptr);
+        public bool Equals([NotNullWhen(true)] NodePath? other)
+        {
+            if (other is null)
+                return false;
+            var self = (godot_node_path)NativeValue;
+            var otherNative = (godot_node_path)other.NativeValue;
+            return NativeFuncs.godotsharp_node_path_equals(self, otherNative).ToBool();
+        }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern string godot_icall_NodePath_operator_String(IntPtr ptr);
+        public override bool Equals([NotNullWhen(true)] object? obj)
+        {
+            return ReferenceEquals(this, obj) || (obj is NodePath other && Equals(other));
+        }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern IntPtr godot_icall_NodePath_get_as_property_path(IntPtr ptr);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern string godot_icall_NodePath_get_concatenated_subnames(IntPtr ptr);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern string godot_icall_NodePath_get_name(IntPtr ptr, int arg1);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern int godot_icall_NodePath_get_name_count(IntPtr ptr);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern string godot_icall_NodePath_get_subname(IntPtr ptr, int arg1);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern int godot_icall_NodePath_get_subname_count(IntPtr ptr);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool godot_icall_NodePath_is_absolute(IntPtr ptr);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool godot_icall_NodePath_is_empty(IntPtr ptr);
+        public override int GetHashCode()
+        {
+            var self = (godot_node_path)NativeValue;
+            return NativeFuncs.godotsharp_node_path_hash(self);
+        }
     }
 }
